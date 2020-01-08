@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+[ "$(uname)" != "Darwin" ] && LINKFLAGS="-extldflags -static -s"
+CGO_ENABLED=0 go build  -o application ./
