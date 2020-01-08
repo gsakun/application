@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+
+cd $(dirname $0)/..
+
+[ "$(uname)" != "Darwin" ] && LINKFLAGS="-extldflags -static -s"
+CGO_ENABLED=0 GO111MODULE=on go build  -o bin/application ./
