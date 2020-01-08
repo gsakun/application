@@ -328,7 +328,7 @@ func (c *controller)syncService(component *v3.Component, app *v3.Application) er
 		}
 	}
 	
-	/*
+	
 	_, err = c.serviceRoleLister.Get(app.Namespace, app.Name + "-" + component.Name + "-" + "servicerole")
 	if err != nil {
 		log.Printf("Get ServiceRole for %s Error : %s\n", (app.Name + ":" + component.Name), err.Error())
@@ -390,7 +390,7 @@ func (c *controller)syncService(component *v3.Component, app *v3.Application) er
 			}
 		}
 	}
-	*/
+	
 	
 	return nil
 }
