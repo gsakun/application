@@ -8,7 +8,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/google/btree v1.0.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/hd-Li/types v0.0.0-00010101000000-000000000000
+	github.com/hd-Li/types v0.0.0-20200108072342-40227b4a545d
 	github.com/knative/pkg v0.0.0-20190817231834-12ee58e32cc8
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -22,7 +22,6 @@ require (
 )
 
 replace (
-	github.com/hd-Li/types => ../types
 	github.com/knative/pkg => github.com/rancher/pkg v0.0.0-20190514055449-b30ab9de040e
 	k8s.io/api => k8s.io/api v0.0.0-20181004124137-fd83cbc87e76
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20181004124836-1748dfb29e8a
