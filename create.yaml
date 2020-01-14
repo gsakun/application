@@ -1,0 +1,57 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: application
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: application
+subjects:
+- kind: ServiceAccount
+  name: application
+  namespace: kube-system
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: application
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: application
+  namespace: kube-system
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: application
+  namespace: kube-system
+  labels:
+    name: application
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: application
+    spec:
+      serviceAccountName: application
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule      
+      containers:
+        - name: application
+          image: gsakun/applicaiton:200114
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: REDIS_SERVER
+              value: redis.default.svc
