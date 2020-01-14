@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	kubeConfig string = "/root/.kube/config-110" 
+	kubeConfig string = "./config" 
 )
 
 func main() {
