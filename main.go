@@ -23,11 +23,13 @@ var (
 )
 
 func main() {
-	//restConfig, err := rest.InClusterConfig()
-	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-	if err != nil {
-		log.Fatalf("Get restconfig failed: %s", err.Error())
-		os.Exit(1)
+	restConfig, err := rest.InClusterConfig()
+	if err != nil{
+		restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
+		if err != nil {
+			log.Fatalf("Get restconfig failed: %s", err.Error())
+			os.Exit(1)
+		}
 	}
 	
 	ctx := SigTermCancelContext(context.Background())
@@ -51,7 +53,7 @@ func main() {
 	}
 	<-ctx.Done()
 }
-
+// SetupApplicationCRD use for init application crd
 func SetupApplicationCRD(ctx context.Context, apiContext *typesconfig.UserOnlyContext, config rest.Config) error {
 	//schemas := types.Schemas{}
 	
@@ -69,7 +71,7 @@ func SetupApplicationCRD(ctx context.Context, apiContext *typesconfig.UserOnlyCo
 	
 	return err
 }
-
+// SigTermCancelContext use for kill process
 func SigTermCancelContext(ctx context.Context) context.Context {
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
