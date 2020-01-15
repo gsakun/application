@@ -123,7 +123,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 
 	app := application.DeepCopy()
 
-	//c.syncNamespaceCommon(app)
+	c.syncNamespaceCommon(app)
 
 	//the deployed app is trusted or not
 	var trusted bool = false
