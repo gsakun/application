@@ -139,7 +139,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 	}
 
 	if app.Status.ComponentResource == nil {
-		app.Status.ComponentResource = map[string]v3.ComponentResources{}
+		app.Status.ComponentResource = make(map[string]v3.ComponentResources)
 	}
 
 	for _, component := range components {
