@@ -2,7 +2,7 @@ package controller
 
 import (
 	"os"
-	"bytes"
+	//"bytes"
 	"encoding/json"
 	
 	corev1 "k8s.io/api/core/v1"
@@ -115,8 +115,8 @@ func NewClusterRbacConfig(app *v3.Application, ns *corev1.Namespace) istiorbacv1
 
 func GetObjectApplied(obj interface{}) string {
 	b, _ := json.Marshal(obj)
-    var out bytes.Buffer
-    json.Indent(&out, b, "", "")
-    
-	return out.String()
+    //var out bytes.Buffer
+    //json.Indent(&out, b, "", "")
+	//return out.String()
+	return string(b)
 }
