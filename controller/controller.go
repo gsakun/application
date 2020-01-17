@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"log"
+	"strings"
 
 	//typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"github.com/hd-Li/types/apis/apps/v1beta2"
@@ -137,35 +138,54 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 	if len(components[0].Containers) == 0 {
 		trusted = true
 	}
-
+	//zk
+	var oldcomresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
+	var comresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
+	var deletelist []string
 	if app.Status.ComponentResource == nil {
-		app.Status.ComponentResource = make(map[string]v3.ComponentResources)
+		app.Status.ComponentResource = comresource
+	} else {
+		oldcomresource = app.Status.ComponentResource
+		app.Status.ComponentResource = comresource
+	}
+
+	for k, _ := range oldcomresource {
+		if _, ok := comresource[k]; !ok {
+			deletelist = append(deletelist, k)
+		}
 	}
 
 	for _, component := range components {
-		if _, ok := app.Status.ComponentResource[component.Name]; !ok {
-			app.Status.ComponentResource[(component.Name + "-" + component.Version)] = v3.ComponentResources{
-				ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
-			}
+		app.Status.ComponentResource[(app.Name + "-" + component.Name + "-" + component.Version)] = v3.ComponentResources{
+			ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
 		}
-
+		var ownerRefOfDeploy metav1.OwnerReference
 		if trusted == false {
 			c.syncConfigmaps(&component, app)
 			c.syncImagePullSecrets(&component, app)
-			c.syncWorkload(&component, app)
+			c.syncWorkload(&component, app, &ownerRefOfDeploy)
 		} else {
-			err := c.syncTrustedWorkload(&component, app)
+			err := c.syncTrustedWorkload(&component, app, &ownerRefOfDeploy)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		c.syncService(&component, app)
-		c.syncAuthor(&component, app)
-		c.syncPolicy(&component, app)
+		c.syncService(&component, app, &ownerRefOfDeploy)
+		c.syncAuthor(&component, app, &ownerRefOfDeploy)
+		c.syncPolicy(&component, app, &ownerRefOfDeploy)
 
 	}
 
+	if len(deletelist) != 0 {
+		errlist := c.gc(deletelist)
+		if len(errlist) != 0 {
+			for _, i := range errlist {
+				app.Status.ComponentResource[i] = v3.ComponentResources{}
+			}
+		}
+	}
+	c.syncStatus(app)
 	return nil, nil
 }
 
@@ -256,19 +276,24 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 	return nil
 }
 
-func (c *controller) syncWorkload(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncWorkload(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	resourceWorkloadType := "deployment"
 	if resourceWorkloadType == "deployment" {
-		c.syncDeployment(component, app)
+		c.syncDeployment(component, app, ref)
 	}
 
 	return nil
 }
 
+//zk
 func (c *controller) syncStatus(app *v3.Application) {
+	_, err := c.applicationClient.Update(app)
+	if err != nil {
+		log.Printf("Update application for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+	}
 }
 
-func (c *controller) syncDeployment(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncDeployment(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	log.Printf("Sync deploy for %s", app.Namespace+":"+component.Name)
 	object := NewDeployObject(component, app)
 	appliedString := GetObjectApplied(object)
@@ -276,7 +301,6 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 	object.Annotations = make(map[string]string)
 	object.Annotations[LastAppliedConfigAnnotation] = appliedString
 	deploy, err := c.deploymentLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version)
-
 	if err != nil {
 		log.Printf("Get deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
@@ -284,6 +308,10 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 			if err != nil {
 				log.Printf("Create deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			}
+			ref.Name = deploy.Name
+			ref.APIVersion = deploy.APIVersion
+			ref.Kind = deploy.Kind
+			ref.UID = deploy.UID
 		}
 	}
 
@@ -301,8 +329,9 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 	return nil
 }
 
-func (c *controller) syncService(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncService(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	object := NewServiceObject(component, app)
+	object.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	objectString := GetObjectApplied(object)
 	//zk
 	object.Annotations = make(map[string]string)
@@ -394,8 +423,9 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application) e
 	return nil
 }
 
-func (c *controller) syncAuthor(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	object := NewServiceRoleBinding(component, app)
+	object.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	objectString := GetObjectApplied(object)
 	object.Annotations = make(map[string]string)
 	object.Annotations[LastAppliedConfigAnnotation] = objectString
@@ -424,17 +454,19 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application) er
 	return nil
 }
 
-func (c *controller) syncPolicy(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncPolicy(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	if component.OptTraits.RateLimit.TimeDuration != "" {
-		c.syncQuotaPolicy(component, app)
+		c.syncQuotaPolicy(component, app, ref)
 	}
 	return nil
 }
 
-func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	log.Printf("Sync quotapolicy for  %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
 
 	insObject := NewQuotaInstance(component, app)
+	//zk
+	insObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	insObjectString := GetObjectApplied(insObject)
 	insObject.Annotations = make(map[string]string)
 	insObject.Annotations[LastAppliedConfigAnnotation] = insObjectString
@@ -463,6 +495,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	//config for client
 	specObject := NewQuotaSpec(component, app)
+	specObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	specObjectString := GetObjectApplied(specObject)
 	specObject.Annotations = make(map[string]string)
 	specObject.Annotations[LastAppliedConfigAnnotation] = specObjectString
@@ -480,6 +513,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 	}
 
 	specbindingObject := NewQuotaSpecBinding(component, app)
+	specbindingObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	specbindingObjectString := GetObjectApplied(specbindingObject)
 	specbindingObject.Annotations = make(map[string]string)
 	specbindingObject.Annotations[LastAppliedConfigAnnotation] = specbindingObjectString
@@ -498,6 +532,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	//config for (mixer) server
 	qhObject := NewQuotaHandlerObject(component, app)
+	qhObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	qhObjectString := GetObjectApplied(qhObject)
 	qhObject.Annotations = make(map[string]string)
 	qhObject.Annotations[LastAppliedConfigAnnotation] = qhObjectString
@@ -524,6 +559,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 	}
 
 	quotaruleObject := NewQuotaRuleObject(component, app)
+	quotaruleObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	quotaruleObjectString := GetObjectApplied(quotaruleObject)
 	quotaruleObject.Annotations = make(map[string]string)
 	quotaruleObject.Annotations[LastAppliedConfigAnnotation] = quotaruleObjectString
@@ -542,7 +578,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 	return nil
 }
 
-func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	resourceWorkloadType := "deployment"
 	if resourceWorkloadType == "deployment" {
 		deploy, err := c.deploymentLister.Get(app.Namespace, component.Name)
@@ -550,7 +586,10 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 			log.Printf("Get trusted deploy for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			return err
 		}
-
+		ref.Name = deploy.Name
+		ref.APIVersion = deploy.APIVersion
+		ref.Kind = deploy.Kind
+		ref.UID = deploy.UID
 		object := deploy.DeepCopy()
 		key := app.Name + "-" + component.Name + "-" + "workload"
 
@@ -564,4 +603,20 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 	}
 
 	return nil
+}
+
+// zk update component state
+func (c *controller) gc(deletelist []string) (errlist []string) {
+	for _, i := range deletelist {
+		slices := strings.Split(i, "-")
+		workloadname := slices[0] + "-" + slices[1] + "-" + "workload" + slices[2]
+		deletePolicy := metav1.DeletePropagationBackground
+		err := c.deploymentClient.Delete(workloadname, &metav1.DeleteOptions{
+			PropagationPolicy: &deletePolicy,
+		})
+		if err != nil {
+			errlist = append(errlist, i)
+		}
+	}
+	return
 }
