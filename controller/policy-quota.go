@@ -9,7 +9,7 @@ import (
 )
 
 func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Instance {
-	ownerRef := GetOwnerRef(app)
+	//ownerRef := GetOwnerRef(app)
 
 	instance := v1alpha2.Instance{
 		TypeMeta: metav1.TypeMeta{
@@ -17,10 +17,10 @@ func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Ins
 			APIVersion: "config.istio.io/v1alpha2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotainstance",
-			Annotations:     map[string]string{},
+			//OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace:   app.Namespace,
+			Name:        app.Name + "-" + component.Name + "-" + "quotainstance",
+			Annotations: map[string]string{},
 		},
 		Spec: v1alpha2.InstanceSpec{
 			CompiledTemplate: "quota",
@@ -39,7 +39,7 @@ func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Ins
 }
 
 func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSpec {
-	ownerRef := GetOwnerRef(app)
+	//ownerRef := GetOwnerRef(app)
 
 	quota := v1alpha2.Quota{
 		Quota:  app.Name + "-" + component.Name + "-" + "quotainstance",
@@ -56,10 +56,10 @@ func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSp
 			APIVersion: "config.istio.io/v1alpha2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotaspec",
-			Annotations:     map[string]string{},
+			//OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace:   app.Namespace,
+			Name:        app.Name + "-" + component.Name + "-" + "quotaspec",
+			Annotations: map[string]string{},
 		},
 		Spec: v1alpha2.QuotaSubSpec{
 			Rules: []*v1alpha2.QuotaRule{&quotaRule},
@@ -70,7 +70,7 @@ func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSp
 }
 
 func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.QuotaSpecBinding {
-	ownerRef := GetOwnerRef(app)
+	//ownerRef := GetOwnerRef(app)
 
 	istioService := v1alpha2.IstioService{
 		Name:      app.Name + "-" + component.Name + "-" + "service",
@@ -88,10 +88,10 @@ func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.
 			APIVersion: "config.istio.io/v1alpha2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotaspecbinding",
-			Annotations:     map[string]string{},
+			//OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace:   app.Namespace,
+			Name:        app.Name + "-" + component.Name + "-" + "quotaspecbinding",
+			Annotations: map[string]string{},
 		},
 		Spec: v1alpha2.QuotaSpecBindingSpec{
 			Services:   []*v1alpha2.IstioService{&istioService},
@@ -103,7 +103,7 @@ func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.
 }
 
 func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alpha2.Handler {
-	ownerRef := GetOwnerRef(app)
+	//ownerRef := GetOwnerRef(app)
 	redisServer := os.Getenv("REDIS_SERVER")
 
 	overrides := []v1alpha2.Override{}
@@ -132,10 +132,10 @@ func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alph
 			APIVersion: "config.istio.io/v1alpha2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotahandler",
-			Annotations:     map[string]string{},
+			//OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace:   app.Namespace,
+			Name:        app.Name + "-" + component.Name + "-" + "quotahandler",
+			Annotations: map[string]string{},
 		},
 		Spec: v1alpha2.HandlerSpec{
 			CompiledAdapter: "redisquota",
@@ -151,7 +151,7 @@ func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alph
 }
 
 func NewQuotaRuleObject(component *v3.Component, app *v3.Application) v1alpha2.Rule {
-	ownerRef := GetOwnerRef(app)
+	//ownerRef := GetOwnerRef(app)
 
 	instance := app.Name + "-" + component.Name + "-" + "quotainstance" + "." + "instance" + "." + app.Namespace
 	action := v1alpha2.Action{
@@ -165,10 +165,10 @@ func NewQuotaRuleObject(component *v3.Component, app *v3.Application) v1alpha2.R
 			APIVersion: "config.istio.io/v1alpha2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotarule",
-			Annotations:     map[string]string{},
+			//OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace:   app.Namespace,
+			Name:        app.Name + "-" + component.Name + "-" + "quotarule",
+			Annotations: map[string]string{},
 		},
 		Spec: v1alpha2.RuleSpec{
 			Actions: []*v1alpha2.Action{&action},
