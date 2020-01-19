@@ -139,6 +139,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 	if len(components[0].Containers) == 0 {
 		trusted = true
 	}
+	app.Status.ComponentResource = make(map[string]v3.ComponentResources)
 	//zk
 	/*var oldcomresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
 	var comresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
