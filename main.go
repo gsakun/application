@@ -24,6 +24,7 @@ var (
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
