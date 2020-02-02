@@ -139,33 +139,27 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 	if len(components[0].Containers) == 0 {
 		trusted = true
 	}
-	app.Status.ComponentResource = make(map[string]v3.ComponentResources)
+	//app.Status.ComponentResource = make(map[string]v3.ComponentResources)
 	//zk
-	/*var oldcomresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
-	var comresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
-	var deletelist []string
-	if app.Status.ComponentResource == nil {
-		app.Status.ComponentResource = comresource
-	} else {
-		oldcomresource = app.Status.ComponentResource
-		app.Status.ComponentResource = comresource
+	var oldcomresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
+	if app.Status.ComponentResource != nil {
+		oldcomresource = app.DeepCopy().Status.ComponentResource
 	}
-
-	for k, _ := range oldcomresource {
-		if _, ok := comresource[k]; !ok {
-			deletelist = append(deletelist, k)
-		}
-	}*/
-
+	app.Status.ComponentResource = make(map[string]v3.ComponentResources)
+	var deletelist []string
 	for _, component := range components {
-		app.Status.ComponentResource[(app.Name + "-" + component.Name + "-" + component.Version)] = v3.ComponentResources{
+		app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
 			ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
 		}
+		delete(oldcomresource, (app.Name + "_" + component.Name + "_" + component.Version))
 		var ownerRefOfDeploy metav1.OwnerReference
 		if trusted == false {
 			c.syncConfigmaps(&component, app)
 			c.syncImagePullSecrets(&component, app)
-			c.syncWorkload(&component, app, &ownerRefOfDeploy)
+			err := c.syncWorkload(&component, app, &ownerRefOfDeploy)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			err := c.syncTrustedWorkload(&component, app, &ownerRefOfDeploy)
 			if err != nil {
@@ -179,17 +173,19 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 			c.syncAuthor(&component, app, &ownerRefOfDeploy)
 			c.syncPolicy(&component, app, &ownerRefOfDeploy)
 		}
-
 	}
-	/*if len(deletelist) != 0 {
-		errlist := c.gc(deletelist)
+	for k, _ := range oldcomresource {
+		deletelist = append(deletelist, k)
+	}
+	if len(deletelist) != 0 {
+		errlist := c.gc(app.Namespace, deletelist)
 		if len(errlist) != 0 {
 			for _, i := range errlist {
 				app.Status.ComponentResource[i] = v3.ComponentResources{}
 			}
 		}
 	}
-	c.syncStatus(app)*/
+	c.syncStatus(app)
 	return nil, nil
 }
 
@@ -284,7 +280,10 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 func (c *controller) syncWorkload(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	resourceWorkloadType := "deployment"
 	if resourceWorkloadType == "deployment" {
-		c.syncDeployment(component, app, ref)
+		err := c.syncDeployment(component, app, ref)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -295,6 +294,8 @@ func (c *controller) syncStatus(app *v3.Application) {
 	_, err := c.applicationClient.Update(app)
 	if err != nil {
 		log.Printf("Update application for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+	} else {
+		log.Printf("Update application for %s\n", (app.Namespace + ":" + app.Name))
 	}
 }
 
@@ -312,12 +313,12 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 			getdeploy, err := c.deploymentClient.Create(&object)
 			if err != nil {
 				log.Printf("Create deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				return err
 			} else {
-				newdeploy := getdeploy.DeepCopy()
-				ref.Name = newdeploy.Name
-				ref.APIVersion = newdeploy.APIVersion
-				ref.Kind = newdeploy.Kind
-				ref.UID = newdeploy.ObjectMeta.UID
+				ref.Name = getdeploy.Name
+				ref.APIVersion = "apps/v1beta2"
+				ref.Kind = "Deployment"
+				ref.UID = getdeploy.ObjectMeta.UID
 			}
 		}
 	} else {
@@ -326,6 +327,7 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 				getdeploy, err := c.deploymentClient.Update(&object)
 				if err != nil {
 					log.Printf("Update deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					return err
 				} else {
 					newdeploy := getdeploy.DeepCopy()
 					ref.Name = newdeploy.Name
@@ -333,6 +335,11 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 					ref.Kind = newdeploy.Kind
 					ref.UID = newdeploy.ObjectMeta.UID
 				}
+			} else {
+				ref.Name = deploy.Name
+				ref.APIVersion = "apps/v1beta2"
+				ref.Kind = "Deployment"
+				ref.UID = deploy.ObjectMeta.UID
 			}
 		}
 	}
@@ -472,7 +479,7 @@ func (c *controller) syncPolicy(component *v3.Component, app *v3.Application, re
 }
 
 func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	log.Printf("Sync quotapolicy for  %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
+	log.Printf("Sync quotapolicy for %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
 
 	insObject := NewQuotaInstance(component, app)
 	//zk
@@ -617,15 +624,16 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 }
 
 // zk update component state
-func (c *controller) gc(deletelist []string) (errlist []string) {
+func (c *controller) gc(namespace string, deletelist []string) (errlist []string) {
 	for _, i := range deletelist {
-		slices := strings.Split(i, "-")
-		workloadname := slices[0] + "-" + slices[1] + "-" + "workload" + slices[2]
+		slices := strings.Split(i, "_")
+		workloadname := slices[0] + "-" + slices[1] + "-" + "workload-" + slices[2]
 		deletePolicy := metav1.DeletePropagationBackground
-		err := c.deploymentClient.Delete(workloadname, &metav1.DeleteOptions{
+		err := c.deploymentClient.DeleteNamespaced(namespace, workloadname, &metav1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
 		})
 		if err != nil {
+			log.Println(err)
 			errlist = append(errlist, i)
 		}
 	}
