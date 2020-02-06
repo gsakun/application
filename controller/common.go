@@ -96,12 +96,16 @@ func NewPolicyObject(app *v3.Application, ns *corev1.Namespace) istioauthnv1alph
 }
 
 func NewClusterRbacConfig(app *v3.Application, ns *corev1.Namespace) istiorbacv1alpha1.ClusterRbacConfig {
+	var labels map[string]string = make(map[string]string)
+	var ann map[string]string = make(map[string]string)
+	labels[app.Namespace] = "included"
 	rbacConfig := istiorbacv1alpha1.ClusterRbacConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   "default",
-			Name:        "default",
-			Labels:      map[string]string{app.Namespace: "included"},
-			Annotations: map[string]string{},
+			Namespace: "default",
+			Name:      "default",
+			//Labels:      map[string]string{app.Namespace: "included"},
+			Labels:      labels,
+			Annotations: ann,
 		},
 		Spec: istiorbacv1alpha1.RbacConfigSpec{
 			Mode: istiorbacv1alpha1.ON_WITH_INCLUSION,
