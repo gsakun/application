@@ -241,7 +241,6 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 			}
 		}
 	} else {
-
 		if cfg != nil {
 			clusterrbacconfig := cfg.DeepCopy()
 			if _, ok := clusterrbacconfig.ObjectMeta.Labels[app.Namespace]; !ok {
@@ -331,8 +330,8 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 				} else {
 					newdeploy := getdeploy.DeepCopy()
 					ref.Name = newdeploy.Name
-					ref.APIVersion = newdeploy.APIVersion
-					ref.Kind = newdeploy.Kind
+					ref.APIVersion = "apps/v1beta2"
+					ref.Kind = "Deployment"
 					ref.UID = newdeploy.ObjectMeta.UID
 				}
 			} else {
@@ -452,6 +451,9 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 	if err != nil {
 		log.Printf("Get servicerolebinding error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
+			if len(component.OptTraits.WhiteList.Users) == 0 {
+				return nil
+			}
 			_, err = c.serviceRoleBindingClient.Create(&object)
 			if err != nil {
 				log.Printf("Create servicerolebinding error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
@@ -460,6 +462,18 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 	} else {
 		if serviceRoleBinding != nil {
 			if serviceRoleBinding.Annotations[LastAppliedConfigAnnotation] != objectString {
+				if len(component.OptTraits.WhiteList.Users) == 0 {
+					log.Printf("whitelist is null ,need delete servicerolebinding and servicerole for %s", app.Name+"-"+component.Name)
+					err = c.serviceRoleBindingClient.DeleteNamespaced(app.Namespace, app.Name+"-"+component.Name+"-"+"servicerolebinding", &metav1.DeleteOptions{})
+					if err != nil {
+						log.Println(err)
+					}
+					err = c.serviceRoleClient.DeleteNamespaced(app.Namespace, app.Name+"-"+component.Name+"-"+"servicerole", &metav1.DeleteOptions{})
+					if err != nil {
+						log.Println(err)
+					}
+					return nil
+				}
 				object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
 				_, err = c.serviceRoleBindingClient.Update(&object)
 				if err != nil {

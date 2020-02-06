@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	kubeConfig string = "./config"
+	kubeConfig string = "./config54"
 )
 
 func main() {
