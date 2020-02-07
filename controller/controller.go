@@ -230,7 +230,7 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 	}
 	log.Printf("Sync policy done for %s", app.Namespace)
 
-	cfg, err := c.clusterconfigLister.Get("", "default")
+	cfg, err := c.clusterconfigLister.Get("istio-system", "default")
 	if err != nil {
 		log.Printf("Get clusterrbacconfig for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
 		if errors.IsNotFound(err) {
