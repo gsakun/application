@@ -101,7 +101,7 @@ func NewClusterRbacConfig(app *v3.Application, ns *corev1.Namespace) istiorbacv1
 	labels[app.Namespace] = "included"
 	rbacConfig := istiorbacv1alpha1.ClusterRbacConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "istio-system",
+			Namespace: "default",
 			Name:      "default",
 			//Labels:      map[string]string{app.Namespace: "included"},
 			Labels:      labels,
