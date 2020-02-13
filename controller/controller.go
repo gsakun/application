@@ -452,6 +452,7 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 		log.Printf("Get servicerolebinding error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			if len(component.OptTraits.WhiteList.Users) == 0 {
+				log.Println("whitelist.user is nil,there is nothing to do")
 				return nil
 			}
 			_, err = c.serviceRoleBindingClient.Create(&object)
