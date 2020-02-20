@@ -186,6 +186,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 			for _, i := range component.OptTraits.Fusing.PodList {
 				c.syncFusing(i, app.Namespace, action)
 			}
+			component.OptTraits.Fusing = v3.Fusing{}
 		}
 	}
 	for k, _ := range oldcomresource {
