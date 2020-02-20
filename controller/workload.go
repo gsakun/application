@@ -33,6 +33,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 					Labels: map[string]string{
 						"app":     app.Name + "-" + component.Name + "-" + "workload",
 						"version": component.Version,
+						"inpool":  "yes",
 					},
 				},
 				Spec: corev1.PodSpec{

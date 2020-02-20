@@ -178,6 +178,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 			c.syncPolicy(&component, app, &ownerRefOfDeploy)
 		}
 		if len(component.OptTraits.Fusing.PodList) != 0 {
+			log.Println("START FUSING")
 			var action bool = false
 			if component.OptTraits.Fusing.Action == "in" {
 				action = true

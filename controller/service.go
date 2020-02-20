@@ -28,7 +28,8 @@ func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Servi
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
-				"app": app.Name + "-" + component.Name + "-" + "workload",
+				"app":    app.Name + "-" + component.Name + "-" + "workload",
+				"inpool": "yes",
 			},
 			Ports: []corev1.ServicePort{port},
 		},
