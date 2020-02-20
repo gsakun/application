@@ -36,6 +36,8 @@ type controller struct {
 	nsClient                 v1.NamespaceInterface
 	coreV1                   v1.Interface
 	appsV1beta2              v1beta2.Interface
+	podLister                v1.PodLister    //zk
+	podClient                v1.PodInterface //zk
 	deploymentLister         v1beta2.DeploymentLister
 	deploymentClient         v1beta2.DeploymentInterface
 	serviceLister            v1.ServiceLister
@@ -85,6 +87,8 @@ func Register(ctx context.Context, userContext *config.UserOnlyContext) {
 		appsV1beta2:              userContext.Apps,
 		deploymentLister:         userContext.Apps.Deployments("").Controller().Lister(),
 		deploymentClient:         userContext.Apps.Deployments(""),
+		podLister:                userContext.Core.Pods("").Controller().Lister(),
+		podClient:                userContext.Core.Pods(""),
 		serviceLister:            userContext.Core.Services("").Controller().Lister(),
 		serviceClient:            userContext.Core.Services(""),
 		virtualServiceLister:     userContext.IstioNetworking.VirtualServices("").Controller().Lister(),
@@ -172,6 +176,15 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 			c.syncService(&component, app, &ownerRefOfDeploy)
 			c.syncAuthor(&component, app, &ownerRefOfDeploy)
 			c.syncPolicy(&component, app, &ownerRefOfDeploy)
+		}
+		if len(component.OptTraits.Fusing.PodList) != 0 {
+			var action bool = false
+			if component.OptTraits.Fusing.Action == "in" {
+				action = true
+			}
+			for _, i := range component.OptTraits.Fusing.PodList {
+				c.syncFusing(i, app.Namespace, action)
+			}
 		}
 	}
 	for k, _ := range oldcomresource {
@@ -653,4 +666,36 @@ func (c *controller) gc(namespace string, deletelist []string) (errlist []string
 		}
 	}
 	return
+}
+
+// zk fucing
+func (c *controller) syncFusing(podname, namespace string, set bool) {
+	pod, err := c.podLister.Get(namespace, podname)
+	if err != nil {
+		log.Println("Get pod for namespace %s pod %s Error: %s", namespace, podname, err.Error())
+	} else {
+		if set {
+			_, ok := pod.Labels["inpool"]
+			if ok {
+				log.Println("this pod %s already have this label", podname)
+				return
+			} else {
+				pod.Labels["inpool"] = "yes"
+				_, err = c.podClient.Update(pod)
+				if err != nil {
+					log.Println("Update pod %s for namespace %s Error: %s", podname)
+				}
+				return
+			}
+		} else {
+			_, ok := pod.Labels["inpool"]
+			if ok {
+				delete(pod.Labels, "inpool")
+				_, err = c.podClient.Update(pod)
+				if err != nil {
+					log.Println("Update pod %s for namespace %s Error: %s", podname)
+				}
+			}
+		}
+	}
 }
