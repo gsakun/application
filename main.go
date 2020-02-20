@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	typesconfig "github.com/hd-Li/types/config"
-	"github.com/rancher/norman/leader"
 	"github.com/rancher/norman/store/crd"
 	"github.com/rancher/norman/store/proxy"
 	"k8s.io/client-go/rest"
@@ -42,20 +41,18 @@ func main() {
 		log.Fatalf("create userContext failed, err: %s", err.Error())
 		os.Exit(1)
 	}
-	go leader.RunOrDie(ctx, "", "application-controllers", userContext.K8sClient, func(ctx context.Context) {
-		err = SetupApplicationCRD(ctx, userContext, *restConfig)
-		if err != nil {
-			log.Fatalf("ceate application crd failed, err: %s ", err.Error())
-			os.Exit(1)
-		}
 
-		controller.Register(ctx, userContext)
-		err = userContext.Start(ctx)
-		if err != nil {
-			panic(err)
-		}
-		<-ctx.Done()
-	})
+	err = SetupApplicationCRD(ctx, userContext, *restConfig)
+	if err != nil {
+		log.Fatalf("ceate application crd failed, err: %s ", err.Error())
+		os.Exit(1)
+	}
+
+	controller.Register(ctx, userContext)
+	err = userContext.Start(ctx)
+	if err != nil {
+		panic(err)
+	}
 	<-ctx.Done()
 }
 
