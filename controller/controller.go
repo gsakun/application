@@ -634,10 +634,12 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 			log.Printf("Get trusted deploy for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			return err
 		}
+
 		ref.Name = deploy.Name
-		ref.APIVersion = deploy.APIVersion
-		ref.Kind = deploy.Kind
-		ref.UID = deploy.UID
+		ref.APIVersion = "apps/v1beta2"
+		ref.Kind = "Deployment"
+		ref.UID = deploy.ObjectMeta.UID
+
 		object := deploy.DeepCopy()
 		key := app.Name + "-" + component.Name + "-" + "workload"
 
