@@ -245,32 +245,32 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 	}
 	log.Printf("Sync policy done for %s", app.Namespace)
 
-	cfg, err := c.clusterconfigLister.Get("", "default")
-	if err != nil {
-		log.Printf("Get clusterrbacconfig for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
-		if errors.IsNotFound(err) {
-			clusterConfig := NewClusterRbacConfig(app, ns)
-			_, err = c.clusterconfigClient.Create(&clusterConfig)
-			if err != nil {
-				log.Printf("Create clusterrbacconfig error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
-			}
-		}
-	} else {
-		if cfg != nil {
-			clusterrbacconfig := cfg.DeepCopy()
-			if _, ok := clusterrbacconfig.ObjectMeta.Labels[app.Namespace]; !ok {
-				clusterrbacconfig.Spec.Inclusion.Namespaces = append(clusterrbacconfig.Spec.Inclusion.Namespaces, app.Namespace)
-				clusterrbacconfig.ObjectMeta.Labels[app.Namespace] = "included"
-				clusterrbacconfig.Namespace = "default" //avoid the client-go bug
-				_, err = c.clusterconfigClient.Update(clusterrbacconfig)
+	/*	cfg, err := c.clusterconfigLister.Get("", "default")
+		if err != nil {
+			log.Printf("Get clusterrbacconfig for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+			if errors.IsNotFound(err) {
+				clusterConfig := NewClusterRbacConfig(app, ns)
+				_, err = c.clusterconfigClient.Create(&clusterConfig)
 				if err != nil {
-					log.Printf("Update clusterrbacconfig error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+					log.Printf("Create clusterrbacconfig error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				}
+			}
+		} else {
+			if cfg != nil {
+				clusterrbacconfig := cfg.DeepCopy()
+				if _, ok := clusterrbacconfig.ObjectMeta.Labels[app.Namespace]; !ok {
+					clusterrbacconfig.Spec.Inclusion.Namespaces = append(clusterrbacconfig.Spec.Inclusion.Namespaces, app.Namespace)
+					clusterrbacconfig.ObjectMeta.Labels[app.Namespace] = "included"
+					clusterrbacconfig.Namespace = "default" //avoid the client-go bug
+					_, err = c.clusterconfigClient.Update(clusterrbacconfig)
+					if err != nil {
+						log.Printf("Update clusterrbacconfig error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+					}
 				}
 			}
 		}
-	}
-	log.Printf("Sync clusterrbacconfig done for %s", app.Namespace)
-
+		log.Printf("Sync clusterrbacconfig done for %s", app.Namespace)
+	*/
 	return nil
 }
 
