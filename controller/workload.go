@@ -10,7 +10,7 @@ import (
 
 func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.Deployment {
 	ownerRef := GetOwnerRef(app)
-	containers, _ := getContainers(component)
+	containers, imagepullsecret, _ := getContainers(component)
 	deploy := appsv1beta2.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
@@ -36,8 +36,10 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 						"inpool":  "yes",
 					},
 				},
+
 				Spec: corev1.PodSpec{
-					Containers: containers,
+					ImagePullSecrets: imagepullsecret,
+					Containers:       containers,
 				},
 			},
 		},
@@ -46,14 +48,14 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	return deploy
 }
 
-func getContainers(component *v3.Component) ([]corev1.Container, error) {
+func getContainers(component *v3.Component) ([]corev1.Container, []corev1.LocalObjectReference, error) {
 	var containers []corev1.Container
-
+	var imagepullsecrets []corev1.LocalObjectReference
 	for _, cc := range component.Containers {
 		ports := getContainerPorts(cc)
 		envs := getContainerEnvs(cc)
 		resources := getContainerResources(cc)
-
+		//volumes :=
 		container := corev1.Container{
 			Name:      cc.Name,
 			Image:     cc.Image,
@@ -62,12 +64,15 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			Ports:     ports,
 			Env:       envs,
 			Resources: resources,
+			//	VolumeMounts: volumes,
 		}
-
+		var imagepullsecret corev1.LocalObjectReference
+		imagepullsecret.Name = cc.ImagePullSecret
 		containers = append(containers, container)
+		imagepullsecrets = append(imagepullsecrets, imagepullsecret)
 	}
 
-	return containers, nil
+	return containers, imagepullsecrets, nil
 }
 
 func getContainerResources(cc v3.ComponentContainer) corev1.ResourceRequirements {
