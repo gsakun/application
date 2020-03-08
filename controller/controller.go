@@ -36,8 +36,10 @@ type controller struct {
 	nsClient                 v1.NamespaceInterface
 	coreV1                   v1.Interface
 	appsV1beta2              v1beta2.Interface
-	podLister                v1.PodLister    //zk
-	podClient                v1.PodInterface //zk
+	podLister                v1.PodLister       //zk
+	podClient                v1.PodInterface    //zk
+	secretLister             v1.SecretLister    //zk
+	secretClient             v1.SecretInterface //zk
 	deploymentLister         v1beta2.DeploymentLister
 	deploymentClient         v1beta2.DeploymentInterface
 	serviceLister            v1.ServiceLister
@@ -46,7 +48,8 @@ type controller struct {
 	virtualServiceClient     istionetworkingv1alph3.VirtualServiceInterface
 	destLister               istionetworkingv1alph3.DestinationRuleLister
 	destClient               istionetworkingv1alph3.DestinationRuleInterface
-	configMapLister          v1.ConfigMapLister
+	configmapLister          v1.ConfigMapLister    //zk
+	configmapClient          v1.ConfigMapInterface //zk
 	gatewayLister            istionetworkingv1alph3.GatewayLister
 	gatewayClient            istionetworkingv1alph3.GatewayInterface
 	policyLister             istioauthnv1alpha1.PolicyLister
@@ -87,15 +90,18 @@ func Register(ctx context.Context, userContext *config.UserOnlyContext) {
 		appsV1beta2:              userContext.Apps,
 		deploymentLister:         userContext.Apps.Deployments("").Controller().Lister(),
 		deploymentClient:         userContext.Apps.Deployments(""),
-		podLister:                userContext.Core.Pods("").Controller().Lister(),
-		podClient:                userContext.Core.Pods(""),
+		configmapLister:          userContext.Core.ConfigMaps("").Controller().Lister(), //zk
+		configmapClient:          userContext.Core.ConfigMaps(""),
+		podLister:                userContext.Core.Pods("").Controller().Lister(),    //zk
+		podClient:                userContext.Core.Pods(""),                          //zk
+		secretLister:             userContext.Core.Secrets("").Controller().Lister(), //zk
+		secretClient:             userContext.Core.Secrets(""),                       //zk
 		serviceLister:            userContext.Core.Services("").Controller().Lister(),
 		serviceClient:            userContext.Core.Services(""),
 		virtualServiceLister:     userContext.IstioNetworking.VirtualServices("").Controller().Lister(),
 		virtualServiceClient:     userContext.IstioNetworking.VirtualServices(""),
 		destLister:               userContext.IstioNetworking.DestinationRules("").Controller().Lister(),
 		destClient:               userContext.IstioNetworking.DestinationRules(""),
-		configMapLister:          userContext.Core.ConfigMaps("").Controller().Lister(),
 		gatewayLister:            userContext.IstioNetworking.Gateways("").Controller().Lister(),
 		gatewayClient:            userContext.IstioNetworking.Gateways(""),
 		policyLister:             userContext.IstioAuthn.Policies("").Controller().Lister(),
@@ -275,26 +281,73 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 }
 
 func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application) error {
-	/*
-		for _, cc := range component.Containers {
-			for _, conf := range cc.Config {
-				newcfgMap := GetConfigMap(conf, &cc, component, app)
-				_, err := c.coreV1.ConfigMaps(configMap.Namespace).Get(configMap.Name)
-
+	log.Printf("Sync configmap  for %s", app.Namespace+":"+component.Name+":"+component.Version)
+	object := NewConfigMapObject(component, app)
+	appliedString := GetObjectApplied(object)
+	configmapname := app.Name + "-" + component.Name + component.Version + "-" + "configmap"
+	configmap, err := c.configmapLister.Get(app.Namespace, configmapname)
+	object.Annotations = make(map[string]string)
+	object.Annotations[LastAppliedConfigAnnotation] = appliedString
+	if err != nil {
+		if errors.IsNotFound(err) {
+			_, err = c.configmapClient.Create(&object)
+			if err != nil {
+				log.Printf("Create configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name + ":" + component.Version), err.Error())
 			}
-		}*/
-
+		} else {
+			log.Printf("Get configmap for %s failed", configmapname)
+		}
+	} else {
+		if configmap != nil {
+			if configmap.Annotations[LastAppliedConfigAnnotation] != appliedString {
+				_, err := c.configmapClient.Update(&object)
+				if err != nil {
+					log.Printf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					return nil
+				}
+			}
+		}
+	}
 	return nil
 }
 
 func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Application) error {
+	log.Printf("Sync imagepull secret for %s", app.Namespace+":"+component.Name)
+	object := NewSecretObject(component, app)
+	appliedString := GetObjectApplied(object)
+
+	secretname := app.Name + "-" + component.Name + "-" + "registry-secret"
+	secret, err := c.secretLister.Get(app.Namespace, secretname)
+	object.Annotations = make(map[string]string)
+	object.Annotations[LastAppliedConfigAnnotation] = appliedString
+	if err != nil {
+		if errors.IsNotFound(err) {
+			_, err = c.secretClient.Create(&object)
+			if err != nil {
+				log.Printf("Create secret for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+			}
+		} else {
+			log.Printf("Get sercret for %s failed", secretname)
+		}
+	} else {
+		if secret != nil {
+			if secret.Annotations[LastAppliedConfigAnnotation] != appliedString {
+				_, err := c.secretClient.Update(&object)
+				if err != nil {
+					log.Printf("Update secret for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					return nil
+				}
+			}
+		}
+	}
 	return nil
 }
 
 func (c *controller) syncWorkload(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	resourceWorkloadType := "deployment"
 	if resourceWorkloadType == "deployment" {
-		err := c.syncDeployment(component, app, ref)
+		err := c.syncImagePullSecrets(component, app)
+		err = c.syncDeployment(component, app, ref)
 		if err != nil {
 			return err
 		}
