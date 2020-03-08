@@ -8,8 +8,71 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.ConfigMap {
+	ownerRef := GetOwnerRef(app)
+	var stringmap map[string]string = make(map[string]string)
+	for _, i := range component.Containers {
+		for _, j := range i.Config {
+			stringmap[j.FileName] = j.Value
+		}
+	}
+	configmap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace:       app.Namespace,
+			Name:            app.Name + "-" + component.Name + component.Version + "-" + "configmap",
+		},
+		Data: stringmap,
+	}
+	return configmap
+}
+
+func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret {
+	ownerRef := GetOwnerRef(app)
+	var stringmap map[string]string = make(map[string]string)
+	stringmap["docker-server"] = component.DevTraits.ImagePullConfig.Registry
+	stringmap["docker-username"] = component.DevTraits.ImagePullConfig.Username
+	stringmap["docker-password"] = component.DevTraits.ImagePullConfig.Password
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace:       app.Namespace,
+			Name:            app.Name + "-" + component.Name + "-" + "registry-secret",
+		},
+		StringData: stringmap,
+		Type:       corev1.SecretTypeDockerConfigJson,
+	}
+	return secret
+}
+
 func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.Deployment {
 	ownerRef := GetOwnerRef(app)
+	var volumes []corev1.Volume //zk
+	for _, i := range component.Containers {
+		for _, j := range i.Resources.Volumes {
+			if j.Disk.Ephemeral {
+				volumes = append(volumes, corev1.Volume{Name: component.Name + j.Name,
+					VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+				})
+			} else {
+				var pathtype corev1.HostPathType = corev1.HostPathDirectoryOrCreate
+				volumes = append(volumes, corev1.Volume{Name: component.Name + j.Name,
+					VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: j.MountPath,
+						Type: &pathtype},
+					}})
+			}
+		}
+		for _, k := range i.Config {
+			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + k.FileName,
+				VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: app.Name + "-" + component.Name + component.Version + "-" + "configmap"},
+					Items: []corev1.KeyToPath{corev1.KeyToPath{
+						Key:  k.FileName,
+						Path: "tmp/" + k.FileName,
+					}},
+				}}})
+		}
+	}
 	containers, imagepullsecret, _ := getContainers(component)
 	deploy := appsv1beta2.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -40,6 +103,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: imagepullsecret,
 					Containers:       containers,
+					Volumes:          volumes, //zk
 				},
 			},
 		},
@@ -55,16 +119,29 @@ func getContainers(component *v3.Component) ([]corev1.Container, []corev1.LocalO
 		ports := getContainerPorts(cc)
 		envs := getContainerEnvs(cc)
 		resources := getContainerResources(cc)
-		//volumes :=
+		var volumes []corev1.VolumeMount
+		for _, j := range cc.Resources.Volumes {
+			volumes = append(volumes, corev1.VolumeMount{
+				Name:      component.Name + j.Name,
+				MountPath: j.MountPath,
+			})
+		}
+		for _, k := range cc.Config {
+			volumes = append(volumes, corev1.VolumeMount{
+				Name:      component.Name + "-" + component.Version + "-" + k.FileName,
+				MountPath: k.Path + "/" + k.FileName,
+				SubPath:   "tmp/" + k.FileName,
+			})
+		}
 		container := corev1.Container{
-			Name:      cc.Name,
-			Image:     cc.Image,
-			Command:   cc.Command,
-			Args:      cc.Args,
-			Ports:     ports,
-			Env:       envs,
-			Resources: resources,
-			//	VolumeMounts: volumes,
+			Name:         cc.Name,
+			Image:        cc.Image,
+			Command:      cc.Command,
+			Args:         cc.Args,
+			Ports:        ports,
+			Env:          envs,
+			Resources:    resources,
+			VolumeMounts: volumes,
 		}
 		var imagepullsecret corev1.LocalObjectReference
 		imagepullsecret.Name = cc.ImagePullSecret

@@ -43,6 +43,7 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 	host := component.OptTraits.Ingress.Host
 	service := app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
 	port := uint32(component.OptTraits.Ingress.ServerPort)
+	//var matchlist []istiov1alpha3.HTTPMatchRequest
 
 	virtualService := istiov1alpha3.VirtualService{
 		TypeMeta: metav1.TypeMeta{
@@ -60,6 +61,7 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 			Hosts:    []string{host},
 			HTTP: []istiov1alpha3.HTTPRoute{
 				istiov1alpha3.HTTPRoute{
+					Match: []istiov1alpha3.HTTPMatchRequest{},
 					Route: []istiov1alpha3.HTTPRouteDestination{
 						istiov1alpha3.HTTPRouteDestination{
 							Destination: istiov1alpha3.Destination{
