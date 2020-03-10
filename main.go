@@ -45,7 +45,7 @@ func main() {
 	go leader.RunOrDie(ctx, "", "application-controller", userContext.K8sClient, func(ctx context.Context) {
 		err = SetupApplicationCRD(ctx, userContext, *restConfig)
 		if err != nil {
-			log.Fatalf("ceate application crd failed, err: %s ", err.Error())
+			log.Fatalf("create application crd failed, err: %s ", err.Error())
 			os.Exit(1)
 		}
 

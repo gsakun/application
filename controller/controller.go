@@ -149,7 +149,6 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 	if len(components[0].Containers) == 0 {
 		trusted = true
 	}
-	//app.Status.ComponentResource = make(map[string]v3.ComponentResources)
 	//zk
 	var oldcomresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
 	if app.Status.ComponentResource != nil {
@@ -158,14 +157,15 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 	app.Status.ComponentResource = make(map[string]v3.ComponentResources)
 	var deletelist []string
 	for _, component := range components {
-		app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
-			ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
-		}
 		delete(oldcomresource, (app.Name + "_" + component.Name + "_" + component.Version))
 		var ownerRefOfDeploy metav1.OwnerReference
 		if trusted == false {
 			c.syncConfigmaps(&component, app)
-			c.syncImagePullSecrets(&component, app)
+			secretname, _ := c.syncImagePullSecrets(&component, app)
+			app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
+				ComponentId:     app.Name + ":" + component.Name + ":" + component.Version,
+				ImagePullSecret: secretname,
+			}
 			err := c.syncWorkload(&component, app, &ownerRefOfDeploy)
 			if err != nil {
 				return nil, err
@@ -311,7 +311,7 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 	return nil
 }
 
-func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Application) error {
+func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Application) (string, error) {
 	log.Printf("Sync imagepull secret for %s", app.Namespace+":"+component.Name)
 	object := NewSecretObject(component, app)
 	appliedString := GetObjectApplied(object)
@@ -325,9 +325,14 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 			_, err = c.secretClient.Create(&object)
 			if err != nil {
 				log.Printf("Create secret for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				return "", err
+			} else {
+				log.Printf("Create Secret %s successful", secretname)
+				return secretname, nil
 			}
 		} else {
 			log.Printf("Get sercret for %s failed", secretname)
+			return "", err
 		}
 	} else {
 		if secret != nil {
@@ -335,19 +340,20 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 				_, err := c.secretClient.Update(&object)
 				if err != nil {
 					log.Printf("Update secret for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
-					return nil
+					return "", err
+				} else {
+					return secretname, nil
 				}
 			}
 		}
 	}
-	return nil
+	return secretname, nil
 }
 
 func (c *controller) syncWorkload(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	resourceWorkloadType := "deployment"
 	if resourceWorkloadType == "deployment" {
-		err := c.syncImagePullSecrets(component, app)
-		err = c.syncDeployment(component, app, ref)
+		err := c.syncDeployment(component, app, ref)
 		if err != nil {
 			return err
 		}
@@ -375,7 +381,7 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 	object.Annotations[LastAppliedConfigAnnotation] = appliedString
 	deploy, err := c.deploymentLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version)
 	if err != nil {
-		log.Printf("Get deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+		//log.Printf("Get deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			getdeploy, err := c.deploymentClient.Create(&object)
 			if err != nil {
@@ -425,7 +431,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 
 	service, err := c.serviceLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"service")
 	if err != nil {
-		log.Printf("Get service for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+		//log.Printf("Get service for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.serviceClient.Create(&object)
 			if err != nil {
@@ -445,7 +451,6 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 
 		_, err = c.serviceRoleLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"servicerole")
 		if err != nil {
-			log.Printf("Get ServiceRole for %s Error : %s\n", (app.Name + ":" + component.Name), err.Error())
 			if errors.IsNotFound(err) {
 				svcRoleObject := NewServiceRoleObject(component, app)
 				_, err = c.serviceRoleClient.Create(&svcRoleObject)
@@ -517,7 +522,6 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 
 	serviceRoleBinding, err := c.serviceRoleBindingLister.Get(app.Namespace, object.Name)
 	if err != nil {
-		log.Printf("Get servicerolebinding error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			if len(component.OptTraits.WhiteList.Users) == 0 {
 				log.Println("whitelist.user is nil,there is nothing to do")

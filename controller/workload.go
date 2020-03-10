@@ -1,11 +1,16 @@
 package controller
 
 import (
+	"encoding/json"
+	"log"
+	"strings"
+
 	v3 "github.com/hd-Li/types/apis/project.cattle.io/v3"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/credentialprovider"
 )
 
 func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.ConfigMap {
@@ -29,20 +34,39 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 
 func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret {
 	ownerRef := GetOwnerRef(app)
-	var stringmap map[string]string = make(map[string]string)
-	stringmap["docker-server"] = component.DevTraits.ImagePullConfig.Registry
-	stringmap["docker-username"] = component.DevTraits.ImagePullConfig.Username
-	stringmap["docker-password"] = component.DevTraits.ImagePullConfig.Password
+
+	dockercfgJsonContent, err := handleDockerCfgJsonContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
+	if err != nil {
+		log.Printf("Create docker secret failed for %s %s ", app.Namespace, component.Name)
+		return corev1.Secret{}
+	}
+	datamap := map[string][]byte{}
+	datamap[corev1.DockerConfigJsonKey] = dockercfgJsonContent
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
 			Namespace:       app.Namespace,
 			Name:            app.Name + "-" + component.Name + "-" + "registry-secret",
 		},
-		StringData: stringmap,
-		Type:       corev1.SecretTypeDockerConfigJson,
+		Data: datamap,
+		Type: corev1.SecretTypeDockerConfigJson,
 	}
 	return secret
+}
+
+// handleDockerCfgJsonContent serializes a ~/.docker/config.json file
+func handleDockerCfgJsonContent(username, password, email, server string) ([]byte, error) {
+	dockercfgAuth := credentialprovider.DockerConfigEntry{
+		Username: username,
+		Password: password,
+		Email:    email,
+	}
+
+	dockerCfgJson := credentialprovider.DockerConfigJson{
+		Auths: map[string]credentialprovider.DockerConfigEntry{server: dockercfgAuth},
+	}
+
+	return json.Marshal(dockerCfgJson)
 }
 
 func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.Deployment {
@@ -57,13 +81,13 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			} else {
 				var pathtype corev1.HostPathType = corev1.HostPathDirectoryOrCreate
 				volumes = append(volumes, corev1.Volume{Name: component.Name + j.Name,
-					VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: j.MountPath,
+					VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: j.Disk.Required,
 						Type: &pathtype},
 					}})
 			}
 		}
 		for _, k := range i.Config {
-			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + k.FileName,
+			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
 				VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{Name: app.Name + "-" + component.Name + component.Version + "-" + "configmap"},
 					Items: []corev1.KeyToPath{corev1.KeyToPath{
@@ -73,7 +97,11 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				}}})
 		}
 	}
-	containers, imagepullsecret, _ := getContainers(component)
+	containers, _ := getContainers(component)
+	var imagepullsecret []corev1.LocalObjectReference
+	if app.Status.ComponentResource[(app.Name+"_"+component.Name+"_"+component.Version)].ImagePullSecret != "" {
+		imagepullsecret = append(imagepullsecret, corev1.LocalObjectReference{app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)].ImagePullSecret})
+	}
 	deploy := appsv1beta2.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
@@ -112,9 +140,8 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	return deploy
 }
 
-func getContainers(component *v3.Component) ([]corev1.Container, []corev1.LocalObjectReference, error) {
+func getContainers(component *v3.Component) ([]corev1.Container, error) {
 	var containers []corev1.Container
-	var imagepullsecrets []corev1.LocalObjectReference
 	for _, cc := range component.Containers {
 		ports := getContainerPorts(cc)
 		envs := getContainerEnvs(cc)
@@ -128,7 +155,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, []corev1.LocalO
 		}
 		for _, k := range cc.Config {
 			volumes = append(volumes, corev1.VolumeMount{
-				Name:      component.Name + "-" + component.Version + "-" + k.FileName,
+				Name:      component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
 				MountPath: k.Path + "/" + k.FileName,
 				SubPath:   "tmp/" + k.FileName,
 			})
@@ -143,13 +170,10 @@ func getContainers(component *v3.Component) ([]corev1.Container, []corev1.LocalO
 			Resources:    resources,
 			VolumeMounts: volumes,
 		}
-		var imagepullsecret corev1.LocalObjectReference
-		imagepullsecret.Name = cc.ImagePullSecret
 		containers = append(containers, container)
-		imagepullsecrets = append(imagepullsecrets, imagepullsecret)
 	}
 
-	return containers, imagepullsecrets, nil
+	return containers, nil
 }
 
 func getContainerResources(cc v3.ComponentContainer) corev1.ResourceRequirements {
