@@ -6,6 +6,9 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/coreos/prometheus-operator v0.25.0 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
+	github.com/docker/docker v1.13.1 // indirect
+	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/go-units v0.4.0 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/google/btree v1.0.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
@@ -22,7 +25,7 @@ require (
 	k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
 	k8s.io/apiserver v0.0.0-20181026185746-f1e867e1a455 // indirect
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
-	k8s.io/kubernetes v0.0.0-00010101000000-000000000000 // indirect
+	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
 )
 
 replace (

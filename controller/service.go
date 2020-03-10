@@ -2,6 +2,7 @@ package controller
 
 import (
 	v3 "github.com/hd-Li/types/apis/project.cattle.io/v3"
+	"github.com/knative/pkg/apis/istio/common/v1alpha1"
 	istiov1alpha3 "github.com/knative/pkg/apis/istio/v1alpha3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,7 +62,13 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 			Hosts:    []string{host},
 			HTTP: []istiov1alpha3.HTTPRoute{
 				istiov1alpha3.HTTPRoute{
-					Match: []istiov1alpha3.HTTPMatchRequest{},
+					Match: []istiov1alpha3.HTTPMatchRequest{
+						istiov1alpha3.HTTPMatchRequest{
+							URI: &v1alpha1.StringMatch{
+								Prefix: component.OptTraits.Ingress.Path,
+							},
+						},
+					},
 					Route: []istiov1alpha3.HTTPRouteDestination{
 						istiov1alpha3.HTTPRouteDestination{
 							Destination: istiov1alpha3.Destination{
