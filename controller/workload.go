@@ -2,14 +2,16 @@ package controller
 
 import (
 	"encoding/json"
-	"log"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	v3 "github.com/hd-Li/types/apis/project.cattle.io/v3"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 )
@@ -147,7 +149,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 		ports := getContainerPorts(cc)
 		envs := getContainerEnvs(cc)
 		resources := getContainerResources(cc)
-		liveness, readiness := getContainersHealthCheck(cc)
+		livenesshandler, readinesshandler := getContainersHealthCheck(cc)
 		var volumes []corev1.VolumeMount
 		for _, j := range cc.Resources.Volumes {
 			volumes = append(volumes, corev1.VolumeMount{
@@ -162,17 +164,28 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 				SubPath:   "tmp/" + k.FileName,
 			})
 		}
+
 		container := corev1.Container{
-			Name:           cc.Name,
-			Image:          cc.Image,
-			Command:        cc.Command,
-			Args:           cc.Args,
-			Ports:          ports,
-			Env:            envs,
-			Resources:      resources,
-			VolumeMounts:   volumes,
-			LivenessProbe:  liveness,
-			ReadinessProbe: readiness,
+			Name:         cc.Name,
+			Image:        cc.Image,
+			Command:      cc.Command,
+			Args:         cc.Args,
+			Ports:        ports,
+			Env:          envs,
+			Resources:    resources,
+			VolumeMounts: volumes,
+			LivenessProbe: &corev1.Probe{
+				InitialDelaySeconds: cc.LivenessProbe.InitialDelaySeconds,
+				TimeoutSeconds:      cc.LivenessProbe.TimeoutSeconds,
+				FailureThreshold:    cc.LivenessProbe.FailureThreshold,
+				Handler:             livenesshandler,
+			},
+			ReadinessProbe: &corev1.Probe{
+				InitialDelaySeconds: cc.ReadinessProbe.InitialDelaySeconds,
+				PeriodSeconds:       cc.ReadinessProbe.PeriodSeconds,
+				TimeoutSeconds:      cc.ReadinessProbe.TimeoutSeconds,
+				Handler:             readinesshandler,
+			},
 		}
 		containers = append(containers, container)
 	}
@@ -245,12 +258,16 @@ func getContainerPorts(cc v3.ComponentContainer) []corev1.ContainerPort {
 }
 
 // zk generate health check model data
-func getContainersHealthCheck(cc v3.ComponentContainer) (liveness *corev1.Probe, readiness *corev1.Probe) {
-	liveness = &corev1.Probe{
-		Handler: corev1.Handler{
+func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.Handler, readinesshandler corev1.Handler) {
+	log.Infof("Liveness %v", cc.LivenessProbe)
+	if len(cc.LivenessProbe.Exec.Command) != 0 {
+		livenesshandler = corev1.Handler{
 			Exec: &corev1.ExecAction{
-				cc.ReadinessProbe.Exec.Command,
+				Command: cc.ReadinessProbe.Exec.Command,
 			},
+		}
+	} else if cc.LivenessProbe.HTTPGet.Path != "" {
+		livenesshandler = corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: cc.ReadinessProbe.HTTPGet.Path,
 				Port: intstr.IntOrString{
@@ -258,25 +275,26 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (liveness *corev1.Probe,
 					IntVal: int32(cc.ReadinessProbe.HTTPGet.Port),
 				},
 			},
+		}
+	} else {
+		livenesshandler = corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
 					IntVal: int32(cc.ReadinessProbe.TCPSocket.Port),
 					Type:   intstr.Int,
 				},
 			},
-		},
-		InitialDelaySeconds: cc.ReadinessProbe.InitialDelaySeconds,
-		TimeoutSeconds:      cc.ReadinessProbe.TimeoutSeconds,
-		PeriodSeconds:       cc.ReadinessProbe.PeriodSeconds,
-		SuccessThreshold:    cc.ReadinessProbe.SuccessThreshold,
-		FailureThreshold:    cc.ReadinessProbe.FailureThreshold,
+		}
 	}
 
-	readiness = &corev1.Probe{
-		Handler: corev1.Handler{
+	if len(cc.ReadinessProbe.Exec.Command) != 0 {
+		readinesshandler = corev1.Handler{
 			Exec: &corev1.ExecAction{
-				cc.ReadinessProbe.Exec.Command,
+				Command: cc.ReadinessProbe.Exec.Command,
 			},
+		}
+	} else if cc.ReadinessProbe.HTTPGet.Path != "" {
+		readinesshandler = corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: cc.ReadinessProbe.HTTPGet.Path,
 				Port: intstr.IntOrString{
@@ -284,19 +302,16 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (liveness *corev1.Probe,
 					IntVal: int32(cc.ReadinessProbe.HTTPGet.Port),
 				},
 			},
+		}
+	} else {
+		readinesshandler = corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
 					IntVal: int32(cc.ReadinessProbe.TCPSocket.Port),
 					Type:   intstr.Int,
 				},
 			},
-		},
-		InitialDelaySeconds: cc.ReadinessProbe.InitialDelaySeconds,
-		TimeoutSeconds:      cc.ReadinessProbe.TimeoutSeconds,
-		PeriodSeconds:       cc.ReadinessProbe.PeriodSeconds,
-		SuccessThreshold:    cc.ReadinessProbe.SuccessThreshold,
-		FailureThreshold:    cc.ReadinessProbe.FailureThreshold,
+		}
 	}
-
-	return liveness, readiness
+	return
 }
