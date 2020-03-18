@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	log "github.com/sirupsen/logrus"
 
 	typesconfig "github.com/hd-Li/types/config"
 	"github.com/rancher/norman/leader"
@@ -25,7 +26,7 @@ var (
 )
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	//log.SetFlags(log.LstdFlags | log.Lshortfile)
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfig)

@@ -40,7 +40,7 @@ func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret
 
 	dockercfgJsonContent, err := handleDockerCfgJsonContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
 	if err != nil {
-		log.Printf("Create docker secret failed for %s %s ", app.Namespace, component.Name)
+		log.Errorf("Create docker secret failed for %s %s ", app.Namespace, component.Name)
 		return corev1.Secret{}
 	}
 	datamap := map[string][]byte{}
@@ -259,7 +259,7 @@ func getContainerPorts(cc v3.ComponentContainer) []corev1.ContainerPort {
 
 // zk generate health check model data
 func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.Handler, readinesshandler corev1.Handler) {
-	log.Infof("Liveness %v", cc.LivenessProbe)
+
 	if len(cc.LivenessProbe.Exec.Command) != 0 {
 		livenesshandler = corev1.Handler{
 			Exec: &corev1.ExecAction{
