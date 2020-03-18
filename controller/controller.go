@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"reflect"
+
 	log "github.com/sirupsen/logrus"
 
 	//typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -482,7 +484,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 			}
 		}
 	}
-	if component.DevTraits.IngressLB.ConsistentType != "" || component.DevTraits.IngressLB.LBType != "" {
+	if component.DevTraits.IngressLB.ConsistentType != "" || component.DevTraits.IngressLB.LBType != "" || !(reflect.DeepEqual(component.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
 		destObject := NewDestinationruleObject(component, app)
 		destObjectString := GetObjectApplied(destObject)
 		destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
