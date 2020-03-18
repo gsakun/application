@@ -92,6 +92,8 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 	service := app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
 
 	var lbSetting *istiov1alpha3.LoadBalancerSettings
+	var connectionpoolsetting *istiov1alpha3.ConnectionPoolSettings //zk
+	var outlierdetectionsetting *istiov1alpha3.OutlierDetection     //zk
 	if component.DevTraits.IngressLB.ConsistentType != "" {
 		lbSetting = &istiov1alpha3.LoadBalancerSettings{
 			ConsistentHash: &istiov1alpha3.ConsistentHashLB{
@@ -113,7 +115,24 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 			Simple: simplb,
 		}
 	}
-
+	connectionpoolsetting = &istiov1alpha3.ConnectionPoolSettings{
+		TCP: &istiov1alpha3.TCPSettings{
+			MaxConnections: component.OptTraits.CircuitBreaking.ConnectionPool.TCP.MaxConnections,
+			ConnectTimeout: component.OptTraits.CircuitBreaking.ConnectionPool.TCP.ConnectTimeout,
+		},
+		HTTP: &istiov1alpha3.HTTPSettings{
+			HTTP1MaxPendingRequests:  component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP1MaxPendingRequests,
+			HTTP2MaxRequests:         component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP2MaxRequests,
+			MaxRequestsPerConnection: component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRequestsPerConnection,
+			MaxRetries:               component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRetries,
+		},
+	}
+	outlierdetectionsetting = &istiov1alpha3.OutlierDetection{
+		ConsecutiveErrors:  component.OptTraits.CircuitBreaking.OutlierDetection.ConsecutiveErrors,
+		Interval:           component.OptTraits.CircuitBreaking.OutlierDetection.Interval,
+		BaseEjectionTime:   component.OptTraits.CircuitBreaking.OutlierDetection.BaseEjectionTime,
+		MaxEjectionPercent: component.OptTraits.CircuitBreaking.OutlierDetection.MaxEjectionPercent,
+	}
 	destinationrule := istiov1alpha3.DestinationRule{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DestinationRule",
@@ -128,7 +147,9 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 		Spec: istiov1alpha3.DestinationRuleSpec{
 			Host: service,
 			TrafficPolicy: &istiov1alpha3.TrafficPolicy{
-				LoadBalancer: lbSetting,
+				LoadBalancer:     lbSetting,
+				ConnectionPool:   connectionpoolsetting,
+				OutlierDetection: outlierdetectionsetting,
 			},
 		},
 	}
