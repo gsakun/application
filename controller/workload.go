@@ -218,16 +218,25 @@ func getContainerResources(cc v3.ComponentContainer) corev1.ResourceRequirements
 	return rr
 }
 
-func getContainerEnvs(cc v3.ComponentContainer) []corev1.EnvVar {
-	var envs []corev1.EnvVar
-
+func getContainerEnvs(cc v3.ComponentContainer) (envs []corev1.EnvVar) {
 	for _, ccenv := range cc.Env {
-		env := corev1.EnvVar{
-			Name:  ccenv.Name,
-			Value: ccenv.Value,
+		if ccenv.FromParam != "" && (ccenv.FromParam == "spec.nodeName" || ccenv.FromParam == "metadata.name" || ccenv.FromParam == "metadata.namespace" || ccenv.FromParam == "status.podIP") {
+			env := corev1.EnvVar{
+				Name: ccenv.Name,
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: ccenv.FromParam,
+					}},
+			}
+			envs = append(envs, env)
+		} else {
+			env := corev1.EnvVar{
+				Name:  ccenv.Name,
+				Value: ccenv.Value,
+			}
+			envs = append(envs, env)
 		}
 
-		envs = append(envs, env)
 	}
 
 	return envs

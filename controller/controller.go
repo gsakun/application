@@ -94,11 +94,11 @@ func Register(ctx context.Context, userContext *config.UserOnlyContext) {
 		deploymentLister:         userContext.Apps.Deployments("").Controller().Lister(),
 		deploymentClient:         userContext.Apps.Deployments(""),
 		configmapLister:          userContext.Core.ConfigMaps("").Controller().Lister(), //zk
-		configmapClient:          userContext.Core.ConfigMaps(""),
-		podLister:                userContext.Core.Pods("").Controller().Lister(),    //zk
-		podClient:                userContext.Core.Pods(""),                          //zk
-		secretLister:             userContext.Core.Secrets("").Controller().Lister(), //zk
-		secretClient:             userContext.Core.Secrets(""),                       //zk
+		configmapClient:          userContext.Core.ConfigMaps(""),                       //zk
+		podLister:                userContext.Core.Pods("").Controller().Lister(),       //zk
+		podClient:                userContext.Core.Pods(""),                             //zk
+		secretLister:             userContext.Core.Secrets("").Controller().Lister(),    //zk
+		secretClient:             userContext.Core.Secrets(""),                          //zk
 		serviceLister:            userContext.Core.Services("").Controller().Lister(),
 		serviceClient:            userContext.Core.Services(""),
 		virtualServiceLister:     userContext.IstioNetworking.VirtualServices("").Controller().Lister(),
@@ -491,7 +491,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 
 		dest, err := c.destLister.Get(app.Namespace, (app.Name + "-" + component.Name + "-" + "destinationrule"))
 		if err != nil {
-			log.Errorf("Get DestinationRule error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+			//log.Errorf("Get DestinationRule error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			if errors.IsNotFound(err) {
 				_, err = c.destClient.Create(&destObject)
 				if err != nil {
