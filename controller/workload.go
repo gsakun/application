@@ -6,12 +6,13 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"reflect"
+
 	v3 "github.com/hd-Li/types/apis/project.cattle.io/v3"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 )
@@ -28,7 +29,7 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + component.Version + "-" + "configmap",
+			Name:            app.Name + "-" + component.Name + "-" + component.Version + "-" + "configmap",
 		},
 		Data: stringmap,
 	}
@@ -78,12 +79,12 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	for _, i := range component.Containers {
 		for _, j := range i.Resources.Volumes {
 			if j.Disk.Ephemeral {
-				volumes = append(volumes, corev1.Volume{Name: component.Name + j.Name,
+				volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + j.Name,
 					VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 				})
 			} else {
 				var pathtype corev1.HostPathType = corev1.HostPathDirectoryOrCreate
-				volumes = append(volumes, corev1.Volume{Name: component.Name + j.Name,
+				volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + j.Name,
 					VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: j.Disk.Required,
 						Type: &pathtype},
 					}})
@@ -92,7 +93,8 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		for _, k := range i.Config {
 			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
 				VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: app.Name + "-" + component.Name + component.Version + "-" + "configmap"},
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: app.Name + "-" + component.Name + "-" + component.Version + "-" + "configmap"},
 					Items: []corev1.KeyToPath{corev1.KeyToPath{
 						Key:  k.FileName,
 						Path: "tmp/" + k.FileName,
@@ -153,7 +155,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 		var volumes []corev1.VolumeMount
 		for _, j := range cc.Resources.Volumes {
 			volumes = append(volumes, corev1.VolumeMount{
-				Name:      component.Name + j.Name,
+				Name:      component.Name + "-" + j.Name,
 				MountPath: j.MountPath,
 			})
 		}
@@ -174,18 +176,22 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			Env:          envs,
 			Resources:    resources,
 			VolumeMounts: volumes,
-			LivenessProbe: &corev1.Probe{
+		}
+		if !(reflect.DeepEqual(livenesshandler, corev1.Handler{})) {
+			container.LivenessProbe = &corev1.Probe{
 				InitialDelaySeconds: cc.LivenessProbe.InitialDelaySeconds,
 				TimeoutSeconds:      cc.LivenessProbe.TimeoutSeconds,
 				FailureThreshold:    cc.LivenessProbe.FailureThreshold,
 				Handler:             livenesshandler,
-			},
-			ReadinessProbe: &corev1.Probe{
+			}
+		}
+		if !(reflect.DeepEqual(readinesshandler, corev1.Handler{})) {
+			container.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: cc.ReadinessProbe.InitialDelaySeconds,
 				PeriodSeconds:       cc.ReadinessProbe.PeriodSeconds,
 				TimeoutSeconds:      cc.ReadinessProbe.TimeoutSeconds,
 				Handler:             readinesshandler,
-			},
+			}
 		}
 		containers = append(containers, container)
 	}
@@ -268,41 +274,42 @@ func getContainerPorts(cc v3.ComponentContainer) []corev1.ContainerPort {
 
 // zk generate health check model data
 func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.Handler, readinesshandler corev1.Handler) {
-
+	log.Debugf("Container info is %v", cc)
 	if len(cc.LivenessProbe.Exec.Command) != 0 {
 		livenesshandler = corev1.Handler{
 			Exec: &corev1.ExecAction{
-				Command: cc.ReadinessProbe.Exec.Command,
+				Command: cc.LivenessProbe.Exec.Command,
 			},
 		}
-	} else if cc.LivenessProbe.HTTPGet.Path != "" {
+	} else if cc.LivenessProbe.HTTPGet.Path != "" && cc.LivenessProbe.HTTPGet.Port > 0 {
 		livenesshandler = corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
-				Path: cc.ReadinessProbe.HTTPGet.Path,
+				Path: cc.LivenessProbe.HTTPGet.Path,
 				Port: intstr.IntOrString{
 					Type:   intstr.Int,
-					IntVal: int32(cc.ReadinessProbe.HTTPGet.Port),
+					IntVal: int32(cc.LivenessProbe.HTTPGet.Port),
+				},
+			},
+		}
+	} else if cc.LivenessProbe.TCPSocket.Port > 0 {
+		livenesshandler = corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: int32(cc.LivenessProbe.TCPSocket.Port),
+					Type:   intstr.Int,
 				},
 			},
 		}
 	} else {
-		livenesshandler = corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: int32(cc.ReadinessProbe.TCPSocket.Port),
-					Type:   intstr.Int,
-				},
-			},
-		}
+		livenesshandler = corev1.Handler{}
 	}
-
 	if len(cc.ReadinessProbe.Exec.Command) != 0 {
 		readinesshandler = corev1.Handler{
 			Exec: &corev1.ExecAction{
 				Command: cc.ReadinessProbe.Exec.Command,
 			},
 		}
-	} else if cc.ReadinessProbe.HTTPGet.Path != "" {
+	} else if cc.ReadinessProbe.HTTPGet.Path != "" && cc.ReadinessProbe.HTTPGet.Port > 0 {
 		readinesshandler = corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: cc.ReadinessProbe.HTTPGet.Path,
@@ -312,7 +319,7 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 				},
 			},
 		}
-	} else {
+	} else if cc.ReadinessProbe.TCPSocket.Port > 0 {
 		readinesshandler = corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
@@ -321,6 +328,8 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 				},
 			},
 		}
+	} else {
+		readinesshandler = corev1.Handler{}
 	}
 	return
 }

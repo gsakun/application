@@ -285,7 +285,7 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 	log.Infof("Sync configmap  for %s", app.Namespace+":"+component.Name+":"+component.Version)
 	object := NewConfigMapObject(component, app)
 	appliedString := GetObjectApplied(object)
-	configmapname := app.Name + "-" + component.Name + component.Version + "-" + "configmap"
+	configmapname := app.Name + "-" + component.Name + "-" + component.Version + "-" + "configmap"
 	configmap, err := c.configmapLister.Get(app.Namespace, configmapname)
 	object.Annotations = make(map[string]string)
 	object.Annotations[LastAppliedConfigAnnotation] = appliedString
@@ -293,17 +293,17 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 		if errors.IsNotFound(err) {
 			_, err = c.configmapClient.Create(&object)
 			if err != nil {
-				log.Infof("Create configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name + ":" + component.Version), err.Error())
+				log.Errorf("Create configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name + ":" + component.Version), err.Error())
 			}
 		} else {
-			log.Infof("Get configmap for %s failed", configmapname)
+			log.Errorf("Get configmap for %s failed", configmapname)
 		}
 	} else {
 		if configmap != nil {
 			if configmap.Annotations[LastAppliedConfigAnnotation] != appliedString {
 				_, err := c.configmapClient.Update(&object)
 				if err != nil {
-					log.Infof("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 					return nil
 				}
 			}

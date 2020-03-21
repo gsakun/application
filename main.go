@@ -25,8 +25,25 @@ var (
 	kubeConfig string = "./config"
 )
 
-func main() {
+func init() {
+	loglevel := os.Getenv("LOG_LEVEL")
+	log.Infof("loglevel env is %s", loglevel)
+	if loglevel == "debug" {
+		log.SetLevel(log.DebugLevel)
+		log.Infof("log level is %s", loglevel)
+		log.SetReportCaller(true)
+	} else {
+		log.SetLevel(log.InfoLevel)
+		log.Infoln("log level is normal")
+	}
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: false,
+		FullTimestamp: true,
+	})
 	//log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
+
+func main() {
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
