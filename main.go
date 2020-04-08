@@ -40,6 +40,7 @@ func init() {
 		DisableColors: false,
 		FullTimestamp: true,
 	})
+	//todo print log with code line
 	//log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
