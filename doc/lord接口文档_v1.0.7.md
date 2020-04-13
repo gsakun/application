@@ -3388,11 +3388,11 @@ Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh
     		"args": []string, #可选 参数
             "config": [{
                 "path": string, #(必选）挂载到容器内路径
-                "filename": string #（必选）挂载到容器内的文件名
+                "fileName": string #（必选）挂载到容器内的文件名
                 "value": string #（必选）文件内容
 			}], #可选 通过该项为容器创建configmap资源并挂载 
     		"env": [{
-                "fromparam": string, #可选 见示例2 目前只支持(spec.nodeName 对应所在主机名 metadata.name 获取容器名 metadata.namespace获取所在namespace status.podIP获取容器ip)
+                "fromParam": string, #可选 见示例2 目前只支持(spec.nodeName 对应所在主机名 metadata.name 获取容器名 metadata.namespace获取所在namespace status.podIP获取容器ip)
                 "name": string,  #必选
                 "value": string #（必选）  ##说明 如果fromparam不为空 value不需要再填 
             }], #可选 用于配置环境变量
@@ -3402,22 +3402,20 @@ Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh
                 "name": string
             }], #可选项 镜像拉取密钥
             "livenessProbe": {
-                "handler": {
-                    "exec": {
-                        command: []string, # 可选项 在容器内执行指定命令。如果命令退出时返回码为 0 则表明容器健康
-                    },
-                    "httpGet": {
-               		   "port": int, # (必选)
-                 	   "path": string, # (必选)
-                	   "httpHeaders": [{
-                		  "name": string, # (必选)
-                		  "value": string # (必选)
-            		   }] # 可选 配置请求头
-            	   }， # 可选 通过httpGet判断容器内服务健康状态
-				    "tcpSocket": {
-                		"port": int， # 可选 配置监听容器内端口健康状态
-            		},
+                "exec": {
+                   command: []string, # 可选项 在容器内执行指定命令。如果命令退出时返回码为 0 则表明容器健康
                 },
+                "httpGet": {
+               		"port": int, # (必选)
+                 	"path": string, # (必选)
+                	"httpHeaders": [{
+                	   "name": string, # (必选)
+                	   "value": string # (必选)
+            		}] # 可选 配置请求头
+            	}， # 可选 通过httpGet判断容器内服务健康状态
+				"tcpSocket": {
+                	"port": int， # 可选 配置监听容器内端口健康状态
+            	}, ## ！！！ exec httpGet tcpSocket 三项只能选其中一项
 				"initialDelaySeconds": int， # 容器启动和探针启动之间的秒数
 				"periodSeconds": int, 检查的频率（以秒为单位）。默认为10秒。最小值为1。
 				"timeoutSeconds": int # 配置检查超时时间
@@ -3432,13 +3430,33 @@ Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh
             "readinessProbe": {
                 内容于livenessProbe一致
             }, # 可选项 用于判断容器服务状态如果异常则从service endpoint列表移除
+			"lifecycle": {
+                "postStart": {
+                    # 同Prestop相同
+                },
+                "preStop": {
+                   "exec": {
+                      command: []string, # 可选项 在容器内执行指定命令。如果命令退出时返回码为 0 则表明容器健康
+                    },
+                   "httpGet": {
+               		  "port": int, # (必选)
+                 	  "path": string, # (必选)
+                	  "httpHeaders": [{
+                	     "name": string, # (必选)
+                	     "value": string # (必选)
+            		  }] # 可选 配置请求头
+            	    }， # 可选 通过httpGet判断容器内服务健康状态
+				   "tcpSocket": {
+                	  "port": int， # 可选 配置监听容器内端口健康状态
+            	   } ## ！！！ exec httpGet tcpSocket 三项只能选其中一项
+            },
 			"resources": {
                 "cpu": string, # 可选 cpu资源配额 单位m 1000m等价于1核cpu
                 "gpu": int, # 可选 gpu资源配额
                 "memory": string, # 可选 内存资源配额 单位Mi,Gi
                 "volumes": [{
                 	"name": string, # (必选)
-                	"mountpath": string, # (必选)
+                	"mountPath": string, # (必选)
                 	"accessMode": string, # 可选
                 	"sharingPolicy": string, # 可选，
                 	"disk": {
@@ -3960,7 +3978,7 @@ test:application-test
 				"value": "test"
 			}, {
 				"name": "PODIP",
-				"fromparam": "status.podIP"
+				"fromParam": "status.podIP"
 			}],
 			"name": "zk-1",
 			"imagePullPolicy": "IfNotPresent",
@@ -3975,19 +3993,43 @@ test:application-test
 						"ephemeral": false,
 						"required": "/home/zk/test"
 					}
+				}, {
+					"name": "test2",
+					"mountPath": "/mnt/test2",
+					"disk": {
+						"ephemeral": true
+					}
 				}]
 			},
 			"config": [{
-				"path": "/etc/test/",
-				"filename": "test.yaml",
-				"value": "wfwdaawfwadwawafaefaefalakklwak"
-			}],
+					"path": "/etc/test",
+					"fileName": "test.yaml",
+					"value": "wfwdaawfwadwawafaefaefalakklwak"
+				},
+				{
+					"path": "/etc/test",
+					"fileName": "test1.yaml",
+					"value": "rrrrrlakklwak"
+				}
+			],
 			"readinessProbe": {
 				"exec": {
 					"command": ["cat", "/etc/test/test.yaml"]
 				},
 				"initialDelaySeconds": 5,
 				"periodSeconds": 5
+			},
+			"lifecycle": {
+				"postStart": {
+					"exec": {
+						"command": ["cat", "/etc/test/test.yaml"]
+					}
+				},
+				"prestop": {
+					"exec": {
+						"command": ["cat", "/etc/test/test.yaml"]
+					}
+				}
 			},
 			"livenessProbe": {
 				"exec": {
