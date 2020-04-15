@@ -28,30 +28,35 @@ metadata:
   name: application
   namespace: kube-system
 ---
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: application
-  namespace: kube-system
-  labels:
-    name: application
-spec:
-  replicas: 1
-  template:
+  ---
+    apiVersion: extensions/v1beta1
+    kind: Deployment
     metadata:
+      name: application
+      namespace: kube-system
       labels:
-        app: application
+        name: application
     spec:
-      serviceAccountName: application
-      nodeSelector:
-        beta.kubernetes.io/arch: amd64
-      tolerations:
-      - operator: Exists
-        effect: NoSchedule      
-      containers:
-        - name: application
-          image: gsakun/applicaiton:200114
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: REDIS_SERVER
-              value: redis.default.svc
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            app: application
+        spec:
+          serviceAccountName: application
+          nodeSelector:
+            beta.kubernetes.io/arch: amd64
+          tolerations:
+          - operator: Exists
+            effect: NoSchedule      
+          containers:
+            - name: application
+              image: gsakun/application:20200321
+              imagePullPolicy: Always
+              env:
+                - name: REDIS_SERVER
+                  value: redis.default.svc:6379
+                - name: AUTHN_ENDPOINT
+                  value: http://10.10.111.92:32305
+                - name: AUTHN_REALM
+                  value: service
