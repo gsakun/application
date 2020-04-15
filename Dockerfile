@@ -1,6 +1,6 @@
 FROM golang:1.13-alpine as builder
 
-WORKDIR /go/src/github.com/iceman739/application/
+WORKDIR /go/src/github.com/gsakun/application/
 
 COPY . .
 
@@ -16,6 +16,6 @@ RUN apk add --no-cache tzdata \
 
 ENV TZ Asia/Shanghai
 
-COPY --from=builder /go/src/github.com/iceman739/application/application /application
+COPY --from=builder /go/src/github.com/gsakun/application/application /application
 
 ENTRYPOINT ["./application"]

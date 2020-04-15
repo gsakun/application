@@ -284,6 +284,10 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application) error {
 	log.Infof("Sync configmap  for %s", app.Namespace+":"+component.Name+":"+component.Version)
 	object := NewConfigMapObject(component, app)
+	if len(object.Data) == 0 {
+		log.Debugf("ConfigMap data is nil, Do not need sync configmap for %s", app.Namespace+":"+app.Name+":"+component.Name+":"+component.Version)
+		return nil
+	}
 	appliedString := GetObjectApplied(object)
 	configmapname := app.Name + "-" + component.Name + "-" + component.Version + "-" + "configmap"
 	configmap, err := c.configmapLister.Get(app.Namespace, configmapname)
@@ -315,6 +319,10 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Application) (string, error) {
 	log.Infof("Sync imagepull secret for %s", app.Namespace+":"+component.Name)
 	object := NewSecretObject(component, app)
+	if len(object.Data) == 0 {
+		log.Debugf("ImagePullSecret not define,ignore %s", app.Namespace+":"+app.Name+":"+component.Name+":"+component.Version)
+		return "", nil
+	}
 	appliedString := GetObjectApplied(object)
 
 	secretname := app.Name + "-" + component.Name + "-" + "registry-secret"
