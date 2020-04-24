@@ -59,7 +59,7 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	if !(reflect.DeepEqual(component.OptTraits.Autoscaling, v3.Autoscaling{})) {
 		c.syncAutoScaleConfigMap(component, app)
-		//c.syncAutoScale(component, app, ref)
+		c.syncAutoScale(component, app, ref)
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 }
 
 // syncAutoScale use for syncAutoScale
-/*func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
+func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	if component.OptTraits.Autoscaling.Metric != "" {
 		log.Infof("This app don't need to configure autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		return nil
@@ -152,7 +152,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 		}
 	}
 	return nil
-}*/
+}
 
 // NewAutoScaleConfigMapObject Use for generate NewAutoScaleConfigMapObject
 func NewAutoScaleConfigMapObject(component *v3.Component, app *v3.Application, data map[string]string) corev1.ConfigMap {
