@@ -10,6 +10,7 @@ import (
 
 	//typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"github.com/hd-Li/types/apis/apps/v1beta2"
+	"github.com/hd-Li/types/apis/autoscaling/v2beta2"
 	v1 "github.com/hd-Li/types/apis/core/v1"
 	"github.com/hd-Li/types/config"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,10 +41,12 @@ type controller struct {
 	nsClient                 v1.NamespaceInterface
 	coreV1                   v1.Interface
 	appsV1beta2              v1beta2.Interface
-	podLister                v1.PodLister       //zk
-	podClient                v1.PodInterface    //zk
-	secretLister             v1.SecretLister    //zk
-	secretClient             v1.SecretInterface //zk
+	podLister                v1.PodLister                             //zk
+	podClient                v1.PodInterface                          //zk
+	secretLister             v1.SecretLister                          //zk
+	secretClient             v1.SecretInterface                       //zk
+	autoscaleLister          v2beta2.HorizontalPodAutoscalerLister    //zk
+	autoscaleClient          v2beta2.HorizontalPodAutoscalerInterface //zk
 	deploymentLister         v1beta2.DeploymentLister
 	deploymentClient         v1beta2.DeploymentInterface
 	serviceLister            v1.ServiceLister
@@ -103,6 +106,8 @@ func Register(ctx context.Context, userContext *config.UserOnlyContext) {
 		secretClient:             userContext.Core.Secrets(""),                          //zk
 		serviceLister:            userContext.Core.Services("").Controller().Lister(),
 		serviceClient:            userContext.Core.Services(""),
+		autoscaleLister:          userContext.Autoscaling.HorizontalPodAutoscalers("").Controller().Lister(), //zk
+		autoscaleClient:          userContext.Autoscaling.HorizontalPodAutoscalers(""),                       //zk
 		virtualServiceLister:     userContext.IstioNetworking.VirtualServices("").Controller().Lister(),
 		virtualServiceClient:     userContext.IstioNetworking.VirtualServices(""),
 		destLister:               userContext.IstioNetworking.DestinationRules("").Controller().Lister(),
@@ -182,6 +187,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 			}
 		}
 		if ownerRefOfDeploy.APIVersion != "" {
+			c.syncHpa(&component, app, &ownerRefOfDeploy)
 			c.syncService(&component, app, &ownerRefOfDeploy)
 			c.syncAuthor(&component, app, &ownerRefOfDeploy)
 			c.syncPolicy(&component, app, &ownerRefOfDeploy)
