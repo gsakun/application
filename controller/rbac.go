@@ -18,7 +18,7 @@ func NewServiceRoleObject(component *v3.Component, app *v3.Application) istiorba
 		},
 		Spec: istiorbacv1alpha1.ServiceRoleSpec{
 			Rules: []istiorbacv1alpha1.AccessRule{
-				istiorbacv1alpha1.AccessRule{
+				{
 					Services: []string{(app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local")},
 				},
 			},

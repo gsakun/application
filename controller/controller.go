@@ -196,7 +196,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 			component.OptTraits.Fusing = v3.Fusing{}
 		}
 	}
-	for k, _ := range oldcomresource {
+	for k := range oldcomresource {
 		deletelist = append(deletelist, k)
 	}
 	if len(deletelist) != 0 {
@@ -335,25 +335,22 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 			if err != nil {
 				log.Errorf("Create secret for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
 				return "", err
-			} else {
-				log.Infof("Create Secret %s successful", secretname)
-				return secretname, nil
 			}
-		} else {
-			log.Errorf("Get sercret for %s failed", secretname)
-			return "", err
+			log.Infof("Create Secret %s successful", secretname)
+			return secretname, nil
+
 		}
-	} else {
-		if secret != nil {
-			if secret.Annotations[LastAppliedConfigAnnotation] != appliedString {
-				_, err := c.secretClient.Update(&object)
-				if err != nil {
-					log.Errorf("Update secret for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
-					return "", err
-				} else {
-					return secretname, nil
-				}
+		log.Errorf("Get sercret for %s failed", secretname)
+		return "", err
+	}
+	if secret != nil {
+		if secret.Annotations[LastAppliedConfigAnnotation] != appliedString {
+			_, err := c.secretClient.Update(&object)
+			if err != nil {
+				log.Errorf("Update secret for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				return "", err
 			}
+			return secretname, nil
 		}
 	}
 	return secretname, nil
@@ -396,12 +393,11 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 			if err != nil {
 				log.Errorf("Create deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 				return err
-			} else {
-				ref.Name = getdeploy.Name
-				ref.APIVersion = "apps/v1beta2"
-				ref.Kind = "Deployment"
-				ref.UID = getdeploy.ObjectMeta.UID
 			}
+			ref.Name = getdeploy.Name
+			ref.APIVersion = "apps/v1beta2"
+			ref.Kind = "Deployment"
+			ref.UID = getdeploy.ObjectMeta.UID
 		}
 	} else {
 		if deploy != nil {
@@ -410,13 +406,12 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 				if err != nil {
 					log.Errorf("Update deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 					return err
-				} else {
-					newdeploy := getdeploy.DeepCopy()
-					ref.Name = newdeploy.Name
-					ref.APIVersion = "apps/v1beta2"
-					ref.Kind = "Deployment"
-					ref.UID = newdeploy.ObjectMeta.UID
 				}
+				newdeploy := getdeploy.DeepCopy()
+				ref.Name = newdeploy.Name
+				ref.APIVersion = "apps/v1beta2"
+				ref.Kind = "Deployment"
+				ref.UID = newdeploy.ObjectMeta.UID
 			} else {
 				ref.Name = deploy.Name
 				ref.APIVersion = "apps/v1beta2"
@@ -749,22 +744,20 @@ func (c *controller) syncFusing(podname, namespace string, set bool) {
 			if ok {
 				log.Debugf("this pod %s already have this label", podname)
 				return
-			} else {
-				pod.Labels["inpool"] = "yes"
-				_, err = c.podClient.Update(pod)
-				if err != nil {
-					log.Errorf("Update pod %s for namespace %s Error: %s", podname)
-				}
-				return
 			}
-		} else {
-			_, ok := pod.Labels["inpool"]
-			if ok {
-				delete(pod.Labels, "inpool")
-				_, err = c.podClient.Update(pod)
-				if err != nil {
-					log.Errorf("Update pod %s for namespace %s Error: %s", podname)
-				}
+			pod.Labels["inpool"] = "yes"
+			_, err = c.podClient.Update(pod)
+			if err != nil {
+				log.Errorf("Update pod %s for namespace %s Error: %s", podname)
+			}
+			return
+		}
+		_, ok := pod.Labels["inpool"]
+		if ok {
+			delete(pod.Labels, "inpool")
+			_, err = c.podClient.Update(pod)
+			if err != nil {
+				log.Errorf("Update pod %s for namespace %s Error: %s", podname)
 			}
 		}
 	}

@@ -12,8 +12,10 @@ require (
 	github.com/knative/pkg v0.0.0-20190817231834-12ee58e32cc8
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
+	github.com/prometheus/common v0.9.1
 	github.com/rancher/norman v0.0.0-20190319175355-e10534b012b0
 	github.com/sirupsen/logrus v1.4.2
+	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0-20190409021203-6e4e0e4f393b
 	k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
 	k8s.io/apiserver v0.0.0-20181026185746-f1e867e1a455 // indirect
@@ -22,8 +24,8 @@ require (
 )
 
 replace (
-	github.com/hd-Li/types => github.com/gsakun/types v0.0.0-20200408070048-f7cd83cb0ec5
-	github.com/knative/pkg => github.com/rancher/pkg v0.0.0-20190514055449-b30ab9de040e
+	github.com/hd-Li/types => github.com/gsakun/types v0.0.0-20200424075253-2898a6f5b8fd
+	github.com/knative/pkg => github.com/gsakun/pkg v0.0.0-20200421071615-21c5df62549f
 	k8s.io/api => k8s.io/api v0.0.0-20181004124137-fd83cbc87e76
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20181004124836-1748dfb29e8a
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20180913025736-6dd46049f395

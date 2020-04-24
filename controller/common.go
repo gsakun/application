@@ -49,7 +49,7 @@ func NewGatewayObject(app *v3.Application, ns *corev1.Namespace) istiov1alpha3.G
 		Spec: istiov1alpha3.GatewaySpec{
 			Selector: map[string]string{"app": "istio-ingressgateway"},
 			Servers: []istiov1alpha3.Server{
-				istiov1alpha3.Server{
+				{
 					Hosts: []string{"*"},
 					Port: istiov1alpha3.Port{
 						Name:     "http",
