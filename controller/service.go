@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// NewServiceObject Use for generate ServiceObject
 func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Service {
 	//ownerRef := GetOwnerRef(app)
 	serverPort := component.OptTraits.Ingress.ServerPort
@@ -41,6 +42,7 @@ func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Servi
 	return service
 }
 
+// NewVirtualServiceObject Use for generate VirtualServiceObject
 func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istiov1alpha3.VirtualService {
 	ownerRef := GetOwnerRef(app)
 	host := component.OptTraits.Ingress.Host
@@ -101,6 +103,7 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 	return virtualService
 }
 
+// NewDestinationruleObject Use for generate DestinationruleObject
 func NewDestinationruleObject(component *v3.Component, app *v3.Application) istiov1alpha3.DestinationRule {
 	ownerRef := GetOwnerRef(app)
 	service := app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"

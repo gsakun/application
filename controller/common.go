@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// GetOwnerRef use for generate ownerRefinfo
 func GetOwnerRef(app *v3.Application) metav1.OwnerReference {
 	ownerRef := metav1.OwnerReference{
 		Name:       app.Namespace + ":" + app.Name,
@@ -26,6 +27,7 @@ func GetOwnerRef(app *v3.Application) metav1.OwnerReference {
 	return ownerRef
 }
 
+// GetOwnerRefFromNamespace use for generate GetOwnerRefFromNamespace
 func GetOwnerRefFromNamespace(ns *corev1.Namespace) metav1.OwnerReference {
 	ownerRef := metav1.OwnerReference{
 		Name:       ns.Name,
@@ -37,9 +39,9 @@ func GetOwnerRefFromNamespace(ns *corev1.Namespace) metav1.OwnerReference {
 	return ownerRef
 }
 
+// NewGatewayObject use for generate GatewayObject
 func NewGatewayObject(app *v3.Application, ns *corev1.Namespace) istiov1alpha3.Gateway {
 	ownerRef := GetOwnerRefFromNamespace(ns)
-
 	gateway := istiov1alpha3.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
@@ -64,6 +66,7 @@ func NewGatewayObject(app *v3.Application, ns *corev1.Namespace) istiov1alpha3.G
 	return gateway
 }
 
+// NewPolicyObject use for generate PolicyObject
 func NewPolicyObject(app *v3.Application, ns *corev1.Namespace) istioauthnv1alphav1.Policy {
 	ownerRef := GetOwnerRefFromNamespace(ns)
 
@@ -95,15 +98,15 @@ func NewPolicyObject(app *v3.Application, ns *corev1.Namespace) istioauthnv1alph
 	return policy
 }
 
+// NewClusterRbacConfig use for generate ClusterRbacConfig
 func NewClusterRbacConfig(app *v3.Application, ns *corev1.Namespace) istiorbacv1alpha1.ClusterRbacConfig {
 	var labels map[string]string = make(map[string]string)
 	var ann map[string]string = make(map[string]string)
 	labels[app.Namespace] = "included"
 	rbacConfig := istiorbacv1alpha1.ClusterRbacConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "default",
-			//Labels:      map[string]string{app.Namespace: "included"},
+			Namespace:   "default",
+			Name:        "default",
 			Labels:      labels,
 			Annotations: ann,
 		},
@@ -118,10 +121,8 @@ func NewClusterRbacConfig(app *v3.Application, ns *corev1.Namespace) istiorbacv1
 	return rbacConfig
 }
 
+// GetObjectApplied use for generate ObjectApplied
 func GetObjectApplied(obj interface{}) string {
 	b, _ := json.Marshal(obj)
-	//var out bytes.Buffer
-	//json.Indent(&out, b, "", "")
-	//return out.String()
 	return string(b)
 }

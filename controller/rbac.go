@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NewServiceRoleObject Use for generate ServiceRoleObject
 func NewServiceRoleObject(component *v3.Component, app *v3.Application) istiorbacv1alpha1.ServiceRole {
 	ownerRef := GetOwnerRef(app)
 
@@ -28,6 +29,7 @@ func NewServiceRoleObject(component *v3.Component, app *v3.Application) istiorba
 	return serviceRole
 }
 
+// NewServiceRoleBinding Use for generate ServiceRoleBinding
 func NewServiceRoleBinding(component *v3.Component, app *v3.Application) istiorbacv1alpha1.ServiceRoleBinding {
 	//ownerRef := GetOwnerRef(app)
 

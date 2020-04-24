@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NewAutoScaleInstance Use for generate NewAutoScaleInstance
 func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) v2beta2.HorizontalPodAutoscaler {
 	ownerRef := GetOwnerRef(app)
 	split := strings.Split(component.OptTraits.Autoscaling.Metric, "---")
@@ -89,16 +90,15 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				data, err := FromYAML([]byte(value))
 				if err != nil {
 					return err
-				} else {
-					rule := generaterule(component.OptTraits.Autoscaling.Metric, app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version)
-					for n, i := range data.Rules {
-						if reflect.DeepEqual(i.SeriesQuery, rule.SeriesQuery) {
-							break
-						} else {
-							config.Rules = append(data.Rules[:n], data.Rules[n+1:]...)
-							config.Rules = append(data.Rules, rule)
-							break
-						}
+				}
+				rule := generaterule(component.OptTraits.Autoscaling.Metric, app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version)
+				for n, i := range data.Rules {
+					if reflect.DeepEqual(i.SeriesQuery, rule.SeriesQuery) {
+						break
+					} else {
+						config.Rules = append(data.Rules[:n], data.Rules[n+1:]...)
+						config.Rules = append(data.Rules, rule)
+						break
 					}
 				}
 			}
@@ -118,6 +118,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 	return nil
 }
 
+// syncAutoScale use for syncAutoScale
 /*func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	if component.OptTraits.Autoscaling.Metric != "" {
 		log.Infof("This app don't need to configure autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
@@ -153,6 +154,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 	return nil
 }*/
 
+// NewAutoScaleConfigMapObject Use for generate NewAutoScaleConfigMapObject
 func NewAutoScaleConfigMapObject(component *v3.Component, app *v3.Application, data map[string]string) corev1.ConfigMap {
 	configmap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -164,6 +166,7 @@ func NewAutoScaleConfigMapObject(component *v3.Component, app *v3.Application, d
 	return configmap
 }
 
+// FromYAML use for parse FromYAML
 func FromYAML(contents []byte) (*MetricsDiscoveryConfig, error) {
 	var cfg MetricsDiscoveryConfig
 	if err := yaml.UnmarshalStrict(contents, &cfg); err != nil {
@@ -172,6 +175,7 @@ func FromYAML(contents []byte) (*MetricsDiscoveryConfig, error) {
 	return &cfg, nil
 }
 
+// generaterule use for generaterule
 func generaterule(data, namespace, podnameprefix string) (rule DiscoveryRule) {
 	split := strings.Split(data, "---")
 	funcation := string(split[0])
