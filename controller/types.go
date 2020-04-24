@@ -4,6 +4,7 @@ import (
 	pmodel "github.com/prometheus/common/model"
 )
 
+// MetricsDiscoveryConfig describes a set of MetricsDiscoveryConfig
 type MetricsDiscoveryConfig struct {
 	// Rules specifies how to discover and map Prometheus metrics to
 	// custom metrics API resources.  The rules are applied independently,

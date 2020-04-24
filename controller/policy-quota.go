@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NewQuotaInstance Use for generate QuotaInstance
 func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Instance {
 	//ownerRef := GetOwnerRef(app)
 
@@ -38,6 +39,7 @@ func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Ins
 	return instance
 }
 
+// NewQuotaSpec Use for generate QuotaSpec
 func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSpec {
 	//ownerRef := GetOwnerRef(app)
 
@@ -69,6 +71,7 @@ func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSp
 	return quotaspec
 }
 
+// NewQuotaSpecBinding Use for generate QuotaSpecBinding
 func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.QuotaSpecBinding {
 	//ownerRef := GetOwnerRef(app)
 
@@ -102,6 +105,7 @@ func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.
 	return quotaspecbinding
 }
 
+// NewQuotaHandlerObject Use for generate QuotaHandlerObject
 func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alpha2.Handler {
 	//ownerRef := GetOwnerRef(app)
 	redisServer := os.Getenv("REDIS_SERVER")
@@ -150,6 +154,7 @@ func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alph
 	return &handler
 }
 
+// NewQuotaRuleObject Use for generate QuotaRuleObject
 func NewQuotaRuleObject(component *v3.Component, app *v3.Application) v1alpha2.Rule {
 	//ownerRef := GetOwnerRef(app)
 

@@ -18,6 +18,7 @@ import (
 	"k8s.io/kubernetes/pkg/credentialprovider"
 )
 
+// NewConfigMapObject Use for generate ConfigMapObject
 func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.ConfigMap {
 	ownerRef := GetOwnerRef(app)
 	var stringmap map[string]string = make(map[string]string)
@@ -37,10 +38,11 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 	return configmap
 }
 
+// NewSecretObject Use for generate SecretObject
 func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret {
 	ownerRef := GetOwnerRef(app)
 
-	dockercfgJSONContent, err := handleDockerCfgJsonContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
+	dockercfgJSONContent, err := handleDockerCfgJSONContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
 	if err != nil {
 		log.Errorf("Create docker secret failed for %s %s ", app.Namespace, component.Name)
 		return corev1.Secret{}
@@ -59,21 +61,22 @@ func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret
 	return secret
 }
 
-// handleDockerCfgJsonContent serializes a ~/.docker/config.json file
-func handleDockerCfgJsonContent(username, password, email, server string) ([]byte, error) {
+// handleDockerCfgJSONContent serializes a ~/.docker/config.json file
+func handleDockerCfgJSONContent(username, password, email, server string) ([]byte, error) {
 	dockercfgAuth := credentialprovider.DockerConfigEntry{
 		Username: username,
 		Password: password,
 		Email:    email,
 	}
 
-	dockerCfgJson := credentialprovider.DockerConfigJson{
+	dockerCfgJSON := credentialprovider.DockerConfigJson{
 		Auths: map[string]credentialprovider.DockerConfigEntry{server: dockercfgAuth},
 	}
 
-	return json.Marshal(dockerCfgJson)
+	return json.Marshal(dockerCfgJSON)
 }
 
+// NewDeployObject Use for generate DeployObject
 func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.Deployment {
 	ownerRef := GetOwnerRef(app)
 	var volumes []corev1.Volume //zk
@@ -107,7 +110,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	containers, _ := getContainers(component)
 	var imagepullsecret []corev1.LocalObjectReference
 	if app.Status.ComponentResource[(app.Name+"_"+component.Name+"_"+component.Version)].ImagePullSecret != "" {
-		imagepullsecret = append(imagepullsecret, corev1.LocalObjectReference{app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)].ImagePullSecret})
+		imagepullsecret = append(imagepullsecret, corev1.LocalObjectReference{Name: app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)].ImagePullSecret})
 	}
 	deploy := appsv1beta2.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

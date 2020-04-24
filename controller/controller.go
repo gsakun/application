@@ -30,6 +30,7 @@ import (
 )
 
 const (
+	// LastAppliedConfigAnnotation define LastAppliedConfigAnnotation
 	LastAppliedConfigAnnotation string = "application/last-applied-configuration"
 )
 
@@ -76,6 +77,7 @@ type controller struct {
 	recorder                 record.EventRecorder
 }
 
+// Register all resource
 func Register(ctx context.Context, userContext *config.UserOnlyContext) {
 	/*
 		utilruntime.Must(v3.AddToScheme(scheme.Scheme))
