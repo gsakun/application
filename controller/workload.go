@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -39,13 +40,13 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret {
 	ownerRef := GetOwnerRef(app)
 
-	dockercfgJsonContent, err := handleDockerCfgJsonContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
+	dockercfgJSONContent, err := handleDockerCfgJsonContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
 	if err != nil {
 		log.Errorf("Create docker secret failed for %s %s ", app.Namespace, component.Name)
 		return corev1.Secret{}
 	}
 	datamap := map[string][]byte{}
-	datamap[corev1.DockerConfigJsonKey] = dockercfgJsonContent
+	datamap[corev1.DockerConfigJsonKey] = dockercfgJSONContent
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
@@ -95,10 +96,11 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: app.Name + "-" + component.Name + "-" + component.Version + "-" + "configmap"},
-					Items: []corev1.KeyToPath{corev1.KeyToPath{
-						Key:  k.FileName,
-						Path: "tmp/" + k.FileName,
-					}},
+					Items: []corev1.KeyToPath{
+						{
+							Key:  k.FileName,
+							Path: "tmp/" + k.FileName,
+						}},
 				}}})
 		}
 	}
@@ -141,7 +143,16 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			},
 		},
 	}
-
+	if component.OptTraits.TerminationGracePeriodSeconds > 30 {
+		deploy.Spec.Template.Spec.TerminationGracePeriodSeconds = &component.OptTraits.TerminationGracePeriodSeconds
+	}
+	if component.OptTraits.CustomMetric.Enable && component.OptTraits.CustomMetric.Uri != "" {
+		deploy.Spec.Template.Annotations = make(map[string]string)
+		deploy.Spec.Template.Annotations["prometheus.io/path"] = "/metrics"
+		deploy.Spec.Template.Annotations["prometheus.io/port"] = "16666"
+		deploy.Spec.Template.Annotations["prometheus.io/scrape"] = "true"
+	}
+	// TODO OPEN METRIC TRANSFR
 	return deploy
 }
 
@@ -199,6 +210,43 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			}
 		}
 		containers = append(containers, container)
+		if component.OptTraits.CustomMetric.Enable && component.OptTraits.CustomMetric.Uri != "" {
+			containers = append(containers, corev1.Container{
+				Name:            "transter-proxy",
+				Image:           os.Getenv("PROXYIMAGE"),
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Env: []corev1.EnvVar{
+					{
+						Name: "POD_NAME",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "metadata.name",
+							}},
+					},
+					{
+						Name: "POD_NAMESPACE",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "metadata.namespace",
+							}},
+					},
+					{
+						Name: "POD_IP",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "status.podIP",
+							}},
+					},
+					{
+						Name:  "URI",
+						Value: component.OptTraits.CustomMetric.Uri,
+					},
+				},
+			})
+		}
 	}
 
 	return containers, nil

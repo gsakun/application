@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"reflect"
+
 	v3 "github.com/hd-Li/types/apis/project.cattle.io/v3"
 	"github.com/knative/pkg/apis/istio/common/v1alpha1"
 	istiov1alpha3 "github.com/knative/pkg/apis/istio/v1alpha3"
@@ -46,6 +48,38 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 	port := uint32(component.OptTraits.Ingress.ServerPort)
 	//var matchlist []istiov1alpha3.HTTPMatchRequest
 
+	var httproutes []istiov1alpha3.HTTPRoute
+	var httproute istiov1alpha3.HTTPRoute
+	httproute = istiov1alpha3.HTTPRoute{
+		Match: []istiov1alpha3.HTTPMatchRequest{
+			{
+				Uri: &v1alpha1.StringMatch{
+					Prefix: component.OptTraits.Ingress.Path,
+				},
+			},
+		},
+		Route: []istiov1alpha3.DestinationWeight{
+			{
+				Destination: istiov1alpha3.Destination{
+					Host: service,
+					Port: istiov1alpha3.PortSelector{
+						Number: port,
+					},
+				},
+			},
+		},
+	}
+
+	if !(reflect.DeepEqual(component.OptTraits.HttpRetry, v3.HttpRetry{})) {
+		httproute.Retries = &istiov1alpha3.HTTPRetry{
+			Attempts:      component.OptTraits.HttpRetry.Attempts,
+			PerTryTimeout: component.OptTraits.HttpRetry.PerTryTimeout,
+			RetryOn:       "5xx,gateway-error,connect-failure,refused-stream",
+		}
+	}
+
+	httproutes = append(httproutes, httproute)
+
 	virtualService := istiov1alpha3.VirtualService{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "VirtualService",
@@ -60,27 +94,7 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 		Spec: istiov1alpha3.VirtualServiceSpec{
 			Gateways: []string{(app.Namespace + "-" + "gateway")},
 			Hosts:    []string{host},
-			HTTP: []istiov1alpha3.HTTPRoute{
-				istiov1alpha3.HTTPRoute{
-					Match: []istiov1alpha3.HTTPMatchRequest{
-						istiov1alpha3.HTTPMatchRequest{
-							URI: &v1alpha1.StringMatch{
-								Prefix: component.OptTraits.Ingress.Path,
-							},
-						},
-					},
-					Route: []istiov1alpha3.HTTPRouteDestination{
-						istiov1alpha3.HTTPRouteDestination{
-							Destination: istiov1alpha3.Destination{
-								Host: service,
-								Port: istiov1alpha3.PortSelector{
-									Number: port,
-								},
-							},
-						},
-					},
-				},
-			},
+			Http:     httproutes,
 		},
 	}
 
@@ -97,7 +111,7 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 	if component.DevTraits.IngressLB.ConsistentType != "" {
 		lbSetting = &istiov1alpha3.LoadBalancerSettings{
 			ConsistentHash: &istiov1alpha3.ConsistentHashLB{
-				UseSourceIP: true,
+				UseSourceIp: true,
 			},
 		}
 	} else if lbType := component.DevTraits.IngressLB.LBType; lbType != "" {
@@ -116,13 +130,13 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 		}
 	}
 	connectionpoolsetting = &istiov1alpha3.ConnectionPoolSettings{
-		TCP: &istiov1alpha3.TCPSettings{
+		Tcp: &istiov1alpha3.TCPSettings{
 			MaxConnections: component.OptTraits.CircuitBreaking.ConnectionPool.TCP.MaxConnections,
 			ConnectTimeout: component.OptTraits.CircuitBreaking.ConnectionPool.TCP.ConnectTimeout,
 		},
-		HTTP: &istiov1alpha3.HTTPSettings{
-			HTTP1MaxPendingRequests:  component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP1MaxPendingRequests,
-			HTTP2MaxRequests:         component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP2MaxRequests,
+		Http: &istiov1alpha3.HTTPSettings{
+			Http1MaxPendingRequests:  component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP1MaxPendingRequests,
+			Http2MaxRequests:         component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP2MaxRequests,
 			MaxRequestsPerConnection: component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRequestsPerConnection,
 			MaxRetries:               component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRetries,
 		},
@@ -153,6 +167,5 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 			},
 		},
 	}
-
 	return destinationrule
 }
