@@ -443,7 +443,6 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 
 	service, err := c.serviceLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"service")
 	if err != nil {
-		//log.Infof("Get service for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.serviceClient.Create(&object)
 			if err != nil {
@@ -453,8 +452,8 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 	} else {
 		if service != nil {
 			if service.Annotations[LastAppliedConfigAnnotation] != objectString {
-				c.serviceClient.DeleteNamespaced(service.Namespace, service.Name, &metav1.DeleteOptions{})
-				_, err = c.serviceClient.Create(&object)
+				//c.serviceClient.DeleteNamespaced(service.Namespace, service.Name, &metav1.DeleteOptions{})
+				_, err = c.serviceClient.Update(&object)
 				if err != nil {
 					log.Errorf("Update(Create) Service for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
 				}
