@@ -166,7 +166,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 		envs := getContainerEnvs(cc)
 		resources := getContainerResources(cc)
 		livenesshandler, readinesshandler := getContainersHealthCheck(cc)
-		poststart, prestop := getContainersLifeCycle(cc)
+		lifecycle := getContainersLifeCycle(cc)
 		var volumes []corev1.VolumeMount
 		for _, j := range cc.Resources.Volumes {
 			volumes = append(volumes, corev1.VolumeMount{
@@ -191,10 +191,9 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			Env:          envs,
 			Resources:    resources,
 			VolumeMounts: volumes,
-			Lifecycle: &corev1.Lifecycle{
-				PostStart: &poststart,
-				PreStop:   &prestop,
-			},
+		}
+		if lifecycle != nil {
+			container.Lifecycle = lifecycle
 		}
 		if !(reflect.DeepEqual(livenesshandler, corev1.Handler{})) {
 			container.LivenessProbe = &corev1.Probe{
@@ -330,124 +329,149 @@ func getContainerPorts(cc v3.ComponentContainer) []corev1.ContainerPort {
 
 // zk generate health check model data
 func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.Handler, readinesshandler corev1.Handler) {
-	log.Debugf("Container info is %v", cc)
-	if len(cc.LivenessProbe.Exec.Command) != 0 {
-		livenesshandler = corev1.Handler{
-			Exec: &corev1.ExecAction{
-				Command: cc.LivenessProbe.Exec.Command,
-			},
-		}
-	} else if cc.LivenessProbe.HTTPGet.Path != "" && cc.LivenessProbe.HTTPGet.Port > 0 {
-		livenesshandler = corev1.Handler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: cc.LivenessProbe.HTTPGet.Path,
-				Port: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: int32(cc.LivenessProbe.HTTPGet.Port),
+	//log.Debugf("Container info is %v", cc)
+	if !reflect.DeepEqual(cc.LivenessProbe, v3.HealthProbe{}) {
+		if len(cc.LivenessProbe.Exec.Command) != 0 {
+			livenesshandler = corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: cc.LivenessProbe.Exec.Command,
 				},
-			},
-		}
-	} else if cc.LivenessProbe.TCPSocket.Port > 0 {
-		livenesshandler = corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: int32(cc.LivenessProbe.TCPSocket.Port),
-					Type:   intstr.Int,
+			}
+		} else if cc.LivenessProbe.HTTPGet.Path != "" && cc.LivenessProbe.HTTPGet.Port > 0 {
+			livenesshandler = corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: cc.LivenessProbe.HTTPGet.Path,
+					Port: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(cc.LivenessProbe.HTTPGet.Port),
+					},
 				},
-			},
+			}
+		} else if cc.LivenessProbe.TCPSocket.Port > 0 {
+			livenesshandler = corev1.Handler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.IntOrString{
+						IntVal: int32(cc.LivenessProbe.TCPSocket.Port),
+						Type:   intstr.Int,
+					},
+				},
+			}
+		} else {
+			livenesshandler = corev1.Handler{}
 		}
-	} else {
-		livenesshandler = corev1.Handler{}
 	}
-	if len(cc.ReadinessProbe.Exec.Command) != 0 {
-		readinesshandler = corev1.Handler{
-			Exec: &corev1.ExecAction{
-				Command: cc.ReadinessProbe.Exec.Command,
-			},
-		}
-	} else if cc.ReadinessProbe.HTTPGet.Path != "" && cc.ReadinessProbe.HTTPGet.Port > 0 {
-		readinesshandler = corev1.Handler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: cc.ReadinessProbe.HTTPGet.Path,
-				Port: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: int32(cc.ReadinessProbe.HTTPGet.Port),
+	if !reflect.DeepEqual(cc.ReadinessProbe, v3.HealthProbe{}) {
+		if len(cc.ReadinessProbe.Exec.Command) != 0 {
+			readinesshandler = corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: cc.ReadinessProbe.Exec.Command,
 				},
-			},
-		}
-	} else if cc.ReadinessProbe.TCPSocket.Port > 0 {
-		readinesshandler = corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: int32(cc.ReadinessProbe.TCPSocket.Port),
-					Type:   intstr.Int,
+			}
+		} else if cc.ReadinessProbe.HTTPGet.Path != "" && cc.ReadinessProbe.HTTPGet.Port > 0 {
+			readinesshandler = corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: cc.ReadinessProbe.HTTPGet.Path,
+					Port: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(cc.ReadinessProbe.HTTPGet.Port),
+					},
 				},
-			},
+			}
+		} else if cc.ReadinessProbe.TCPSocket.Port > 0 {
+			readinesshandler = corev1.Handler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.IntOrString{
+						IntVal: int32(cc.ReadinessProbe.TCPSocket.Port),
+						Type:   intstr.Int,
+					},
+				},
+			}
+		} else {
+			readinesshandler = corev1.Handler{}
 		}
-	} else {
-		readinesshandler = corev1.Handler{}
 	}
 	return
 }
 
 // zk generate pod lifecycle
-func getContainersLifeCycle(cc v3.ComponentContainer) (poststart corev1.Handler, prestop corev1.Handler) {
-	log.Debugf("Container info is %v", cc)
-	if len(cc.Lifecycle.PostStart.Exec.Command) != 0 {
-		poststart = corev1.Handler{
-			Exec: &corev1.ExecAction{
-				Command: cc.Lifecycle.PostStart.Exec.Command,
-			},
-		}
-	} else if cc.Lifecycle.PostStart.HTTPGet.Path != "" && cc.Lifecycle.PostStart.HTTPGet.Port > 0 {
-		poststart = corev1.Handler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: cc.Lifecycle.PostStart.HTTPGet.Path,
-				Port: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: int32(cc.Lifecycle.PostStart.HTTPGet.Port),
-				},
-			},
-		}
-	} else if cc.Lifecycle.PostStart.TCPSocket.Port > 0 {
-		poststart = corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: int32(cc.Lifecycle.PostStart.TCPSocket.Port),
-					Type:   intstr.Int,
-				},
-			},
-		}
-	} else {
-		poststart = corev1.Handler{}
+func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecycle) {
+	// new lifecycle memory address
+	lifecycle = new(corev1.Lifecycle)
+	if reflect.DeepEqual(cc.Lifecycle, v3.CLifecycle{}) {
+		return lifecycle
 	}
-	if len(cc.Lifecycle.PreStop.Exec.Command) != 0 {
-		prestop = corev1.Handler{
-			Exec: &corev1.ExecAction{
-				Command: cc.Lifecycle.PreStop.Exec.Command,
-			},
+	log.Infof("Container info is %v", cc)
+	if cc.Lifecycle.PostStart != nil {
+		if !reflect.DeepEqual(cc.Lifecycle.PostStart.Exec, v3.ExecAction{}) {
+			if len(cc.Lifecycle.PostStart.Exec.Command) != 0 {
+				lifecycle.PostStart = &corev1.Handler{
+					Exec: &corev1.ExecAction{
+						Command: cc.Lifecycle.PostStart.Exec.Command,
+					},
+				}
+			}
 		}
-	} else if cc.Lifecycle.PreStop.HTTPGet.Path != "" && cc.Lifecycle.PreStop.HTTPGet.Port > 0 {
-		prestop = corev1.Handler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: cc.Lifecycle.PreStop.HTTPGet.Path,
-				Port: intstr.IntOrString{
-					Type:   intstr.Int,
-					IntVal: int32(cc.Lifecycle.PreStop.HTTPGet.Port),
-				},
-			},
+		if !reflect.DeepEqual(cc.Lifecycle.PostStart.HTTPGet, v3.HTTPGetAction{}) {
+			if cc.Lifecycle.PostStart.HTTPGet.Path != "" && cc.Lifecycle.PostStart.HTTPGet.Port > 0 {
+				lifecycle.PostStart = &corev1.Handler{
+					HTTPGet: &corev1.HTTPGetAction{
+						Path: cc.Lifecycle.PostStart.HTTPGet.Path,
+						Port: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: int32(cc.Lifecycle.PostStart.HTTPGet.Port),
+						},
+					},
+				}
+			}
 		}
-	} else if cc.Lifecycle.PreStop.TCPSocket.Port > 0 {
-		prestop = corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: int32(cc.Lifecycle.PreStop.TCPSocket.Port),
-					Type:   intstr.Int,
-				},
-			},
+		if !reflect.DeepEqual(cc.Lifecycle.PostStart.TCPSocket, v3.TCPSocketAction{}) {
+			if cc.Lifecycle.PostStart.TCPSocket.Port > 0 {
+				lifecycle.PostStart = &corev1.Handler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.IntOrString{
+							IntVal: int32(cc.Lifecycle.PostStart.TCPSocket.Port),
+							Type:   intstr.Int,
+						},
+					},
+				}
+			}
 		}
-	} else {
-		prestop = corev1.Handler{}
+	}
+	if cc.Lifecycle.PreStop != nil {
+		if !reflect.DeepEqual(cc.Lifecycle.PreStop.Exec, v3.ExecAction{}) {
+			if len(cc.Lifecycle.PreStop.Exec.Command) != 0 {
+				lifecycle.PreStop = &corev1.Handler{
+					Exec: &corev1.ExecAction{
+						Command: cc.Lifecycle.PreStop.Exec.Command,
+					},
+				}
+			}
+		}
+		if !reflect.DeepEqual(cc.Lifecycle.PreStop.HTTPGet, v3.HTTPGetAction{}) {
+			if cc.Lifecycle.PreStop.HTTPGet.Path != "" && cc.Lifecycle.PreStop.HTTPGet.Port > 0 {
+				lifecycle.PreStop = &corev1.Handler{
+					HTTPGet: &corev1.HTTPGetAction{
+						Path: cc.Lifecycle.PreStop.HTTPGet.Path,
+						Port: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: int32(cc.Lifecycle.PreStop.HTTPGet.Port),
+						},
+					},
+				}
+			}
+		}
+		if !reflect.DeepEqual(cc.Lifecycle.PreStop.TCPSocket, v3.TCPSocketAction{}) {
+			if cc.Lifecycle.PreStop.TCPSocket.Port > 0 {
+				lifecycle.PreStop = &corev1.Handler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.IntOrString{
+							IntVal: int32(cc.Lifecycle.PreStop.TCPSocket.Port),
+							Type:   intstr.Int,
+						},
+					},
+				}
+			}
+		}
 	}
 	return
 }
