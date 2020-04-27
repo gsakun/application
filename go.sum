@@ -86,6 +86,16 @@ github.com/gsakun/types v0.0.0-20200424101440-f2fba526b964 h1:/o+TFztMK+tyZLEdP3
 github.com/gsakun/types v0.0.0-20200424101440-f2fba526b964/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
 github.com/gsakun/types v0.0.0-20200426085821-8378553d8f20 h1:Sbh3wLYKt6I6e7KkU8hdjX64c9/4dcCN02AVum4lEQY=
 github.com/gsakun/types v0.0.0-20200426085821-8378553d8f20/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
+github.com/gsakun/types v0.0.0-20200427073145-d5171c7dbd0a h1:ICgygW29EiFEOXIAkfrU9fRK4Cn+1BMh1Do4z+GfrsY=
+github.com/gsakun/types v0.0.0-20200427073145-d5171c7dbd0a/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
+github.com/gsakun/types v0.0.0-20200427075348-4bae49a0e192 h1:7uiT+HD2+Tqk1BhHNsJZKwk0l/I0sPetUBRIFgLutNE=
+github.com/gsakun/types v0.0.0-20200427075348-4bae49a0e192/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
+github.com/gsakun/types v0.0.0-20200427093042-c93ba091775a h1:WbdKDKcWdCAAhlPcp4cnzurzRuYpXk5Jw7cSmzsEUbM=
+github.com/gsakun/types v0.0.0-20200427093042-c93ba091775a/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
+github.com/gsakun/types v0.0.0-20200427094125-87d4c45a7f45 h1:gxhHCHzc/hqg501kxvfoSk98U/bLx9Vaul2F0opbkW4=
+github.com/gsakun/types v0.0.0-20200427094125-87d4c45a7f45/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
+github.com/gsakun/types v0.0.0-20200427094716-2a440b2639ad h1:VYGrfA5sPC5i//HZiOCdNYoeq5RNiEPs6sLefcWg2WE=
+github.com/gsakun/types v0.0.0-20200427094716-2a440b2639ad/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
 github.com/hashicorp/golang-lru v0.5.1 h1:0hERBMJE1eitiLkihrMvRVBYAkpHzc/J3QdDN+dAcgU=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/iceman739/types v0.0.0-20200408070048-f7cd83cb0ec5 h1:LGAkUx0DHDfvJS1lrFB6QQy/SU7ydia7MeqOGrEWKm0=
