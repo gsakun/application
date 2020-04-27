@@ -1,4 +1,3 @@
----
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
@@ -10,7 +9,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: application
-  namespace: kube-system
+  namespace: application
 
 ---
 kind: ClusterRole
@@ -26,37 +25,40 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: application
-  namespace: kube-system
+  namespace: application
 ---
-  ---
-    apiVersion: extensions/v1beta1
-    kind: Deployment
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: application
+  namespace: application
+  labels:
+    name: application
+spec:
+  replicas: 1
+  template:
     metadata:
-      name: application
-      namespace: kube-system
       labels:
-        name: application
+        app: application
     spec:
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            app: application
-        spec:
-          serviceAccountName: application
-          nodeSelector:
-            beta.kubernetes.io/arch: amd64
-          tolerations:
-          - operator: Exists
-            effect: NoSchedule      
-          containers:
-            - name: application
-              image: gsakun/application:20200321
-              imagePullPolicy: Always
-              env:
-                - name: REDIS_SERVER
-                  value: redis.default.svc:6379
-                - name: AUTHN_ENDPOINT
-                  value: http://10.10.111.92:32305
-                - name: AUTHN_REALM
-                  value: service
+      serviceAccountName: application
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule      
+      containers:
+        - name: application
+          image: gsakun/application:20200426
+          imagePullPolicy: Always
+          env:
+            - name: REDIS_SERVER
+              value: redis-redis-ha-haproxy.redis.svc.cluster.local:6379
+            - name: AUTHN_ENDPOINT
+              value: http://10.10.111.92:32305
+            - name: AUTHN_REALM
+              value: service
+            - name: LOG_LEVEL
+              value: info
+            - name: PROXYIMAGE
+              value: socp.io/zk/prometheus-transfer:20200414

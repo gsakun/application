@@ -146,6 +146,115 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			},
 		},
 	}
+	if !reflect.DeepEqual(component.OptTraits.SchedulePolicy, v3.SchedulePolicy{}) {
+		if component.OptTraits.SchedulePolicy.NodeSelector != nil {
+			deploy.Spec.Template.Spec.NodeSelector = component.OptTraits.SchedulePolicy.NodeSelector
+		}
+		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
+			if component.OptTraits.SchedulePolicy.NodeAffinity.HardAffinity {
+				deploy.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
+								Operator: corev1.NodeSelectorOperator(component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
+								Values:   component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
+							},
+						},
+					},
+				}
+			} else {
+				deploy.Spec.Template.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
+					{
+						Weight: int32(1),
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
+									Operator: corev1.NodeSelectorOperator(component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
+								},
+							},
+						},
+					},
+				}
+			}
+		}
+		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.PodAffinity, v3.CPodAffinity{}) {
+			if component.OptTraits.SchedulePolicy.PodAffinity.HardAffinity {
+				deploy.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
+					{
+						TopologyKey: "kubernetes.io/hostname",
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
+									Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
+								},
+							},
+						},
+					},
+				}
+			} else {
+				deploy.Spec.Template.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: int32(1),
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							TopologyKey: "kubernetes.io/hostname",
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
+										Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
+										Values:   component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
+									},
+								},
+							},
+						},
+					},
+				}
+			}
+		}
+
+		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.PodAntiAffinity, v3.CPodAntiAffinity{}) {
+			if component.OptTraits.SchedulePolicy.PodAntiAffinity.HardAffinity {
+				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
+					{
+						TopologyKey: "kubernetes.io/hostname",
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
+									Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
+								},
+							},
+						},
+					},
+				}
+			} else {
+				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: int32(1),
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							TopologyKey: "kubernetes.io/hostname",
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
+										Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
+										Values:   component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
+									},
+								},
+							},
+						},
+					},
+				}
+			}
+		}
+
+	}
 	if component.OptTraits.TerminationGracePeriodSeconds > 30 {
 		deploy.Spec.Template.Spec.TerminationGracePeriodSeconds = &component.OptTraits.TerminationGracePeriodSeconds
 	}
