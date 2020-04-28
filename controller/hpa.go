@@ -181,7 +181,7 @@ func NewAutoScaleConfigMapObject(component *v3.Component, app *v3.Application, d
 	configmap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "adapter-config",
-			Name:      "monitor",
+			Name:      "monitoring",
 		},
 		Data: data,
 	}
