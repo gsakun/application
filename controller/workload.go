@@ -151,19 +151,24 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			deploy.Spec.Template.Spec.NodeSelector = component.OptTraits.SchedulePolicy.NodeSelector
 		}
 		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
+			deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			if component.OptTraits.SchedulePolicy.NodeAffinity.HardAffinity {
-				deploy.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
-								Operator: corev1.NodeSelectorOperator(component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
-								Values:   component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
+				deploy.Spec.Template.Spec.Affinity.NodeAffinity = new(corev1.NodeAffinity)
+				deploy.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
+									Operator: corev1.NodeSelectorOperator(component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
+								},
 							},
 						},
 					},
 				}
 			} else {
+				deploy.Spec.Template.Spec.Affinity.NodeAffinity = new(corev1.NodeAffinity)
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
 					{
 						Weight: int32(1),
@@ -181,7 +186,11 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 		}
 		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.PodAffinity, v3.CPodAffinity{}) {
+			if deploy.Spec.Template.Spec.Affinity != nil {
+				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
+			}
 			if component.OptTraits.SchedulePolicy.PodAffinity.HardAffinity {
+				deploy.Spec.Template.Spec.Affinity.PodAffinity = new(corev1.PodAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
 					{
 						TopologyKey: "kubernetes.io/hostname",
@@ -197,6 +206,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 					},
 				}
 			} else {
+				deploy.Spec.Template.Spec.Affinity.PodAffinity = new(corev1.PodAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
 					{
 						Weight: int32(1),
@@ -218,7 +228,11 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		}
 
 		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.PodAntiAffinity, v3.CPodAntiAffinity{}) {
+			if deploy.Spec.Template.Spec.Affinity != nil {
+				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
+			}
 			if component.OptTraits.SchedulePolicy.PodAntiAffinity.HardAffinity {
+				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity = new(corev1.PodAntiAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
 					{
 						TopologyKey: "kubernetes.io/hostname",
@@ -234,6 +248,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 					},
 				}
 			} else {
+				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity = new(corev1.PodAntiAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
 					{
 						Weight: int32(1),
