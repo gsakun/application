@@ -105,14 +105,14 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 			if configmap != nil {
 				value := configmap.Data["config.yaml"]
 				if value == "" {
-					rule := generaterule(component.OptTraits.Autoscaling.Metric, app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version)
+					rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.OptTraits.Autoscaling.Metric, component.Version)
 					config.Rules = append(config.Rules, rule)
 				} else {
 					data, err := FromYAML([]byte(value))
 					if err != nil {
 						return err
 					}
-					rule := generaterule(component.OptTraits.Autoscaling.Metric, app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version)
+					rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.OptTraits.Autoscaling.Metric, component.Version)
 					for n, i := range data.Rules {
 						if reflect.DeepEqual(i.SeriesQuery, rule.SeriesQuery) {
 							break
@@ -198,7 +198,7 @@ func FromYAML(contents []byte) (*MetricsDiscoveryConfig, error) {
 }
 
 // generaterule use for generaterule
-func generaterule(data, namespace, podnameprefix string) (rule DiscoveryRule) {
+func generaterule(app, data, version string) (rule DiscoveryRule) {
 	matched, _ := regexp.MatchString(".*---.*---.*---.*", data)
 	if !matched {
 		return
@@ -216,7 +216,7 @@ func generaterule(data, namespace, podnameprefix string) (rule DiscoveryRule) {
 		Resource: "pod",
 	}
 	//rule.SeriesQuery = fmt.Sprintf(`%s{kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}`, app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version, metric)
-	rule.SeriesQuery = fmt.Sprintf(`%s{kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}`, metric, namespace, podnameprefix)
+	rule.SeriesQuery = fmt.Sprintf(`%s{kubernetes_namespace!="",kubernetes_pod_name!="",app="%s",version="%s"}`, metric, app, version)
 	rule.Resources = ResourceMapping{
 		Overrides: rmap,
 	}
@@ -225,10 +225,10 @@ func generaterule(data, namespace, podnameprefix string) (rule DiscoveryRule) {
 		As:      fmt.Sprintf("${1}_%s_%s", funcation, scope),
 	}
 	if scope == "all" {
-		rule.MetricsQuery = fmt.Sprintf("%s(<<.Series>>{<<.LabelMatchers>>}[%s])", metric, time)
+		rule.MetricsQuery = fmt.Sprintf("%s(<<.Series>>{<<.LabelMatchers>>}[%s])", funcation, time)
 	}
 	if scope == "per" {
-		rule.MetricsQuery = fmt.Sprintf("%s(<<.Series>>{<<.LabelMatchers>>}[%s]) by (<<.GroupBy>>)", metric, time)
+		rule.MetricsQuery = fmt.Sprintf("%s(<<.Series>>{<<.LabelMatchers>>}[%s]) by (<<.GroupBy>>)", funcation, time)
 	}
 	log.Infoln(rule)
 	return
