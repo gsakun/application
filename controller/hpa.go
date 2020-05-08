@@ -90,6 +90,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 		configmap, err := c.configmapLister.Get("monitoring", "adapter-config")
 		if err != nil {
 			if errors.IsNotFound(err) {
+				log.Infoln("Configmap adapter-config not found,then create it")
 				var stringmap map[string]string = make(map[string]string)
 				var config MetricsDiscoveryConfig
 				rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.OptTraits.Autoscaling.Metric, component.Version)
@@ -101,12 +102,12 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				stringmap["config.yaml"] = string(value)
 				object := NewAutoScaleConfigMapObject(component, app, stringmap)
 				log.Infof("NewAutoScaleConfigMapObject %v", object)
-				_, err = c.configmapClient.Create(&object)
+				newconfigmap, err := c.configmapClient.Create(&object)
 				if err != nil {
 					log.Errorf("Create configmap for %s Error : %s\n", "adapter-config", err.Error())
 					return err
 				}
-				log.Infoln("Create hpaconfigmap adapter-config")
+				log.Infof("Create hpaconfigmap adapter-config %v", newconfigmap)
 			} else {
 				log.Errorf("Get configmap for %s failed", "adapter-config")
 				return err
@@ -115,36 +116,43 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 			var config MetricsDiscoveryConfig
 			if configmap != nil {
 				value := configmap.Data["config.yaml"]
+				log.Infof("configmap value %v", value)
 				if value == "" {
-					rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.OptTraits.Autoscaling.Metric, component.Version)
+					rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
 					config.Rules = append(config.Rules, rule)
 				} else {
 					data, err := FromYAML([]byte(value))
 					if err != nil {
 						return err
 					}
-					rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.OptTraits.Autoscaling.Metric, component.Version)
+					config.Rules = data.Rules
+					rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
+					log.Infof("add new rule %v", rule)
 					for n, i := range data.Rules {
-						if reflect.DeepEqual(i.SeriesQuery, rule.SeriesQuery) {
+						if reflect.DeepEqual(i, rule) {
+							log.Infoln("equal")
 							break
 						} else {
+							log.Infoln("add new rule to slice")
 							config.Rules = append(data.Rules[:n], data.Rules[n+1:]...)
-							config.Rules = append(data.Rules, rule)
+							config.Rules = append(config.Rules, rule)
 							break
 						}
 					}
 				}
 			}
 			value, err := yaml.Marshal(config)
+			log.Infof("Config %v", config)
 			if err != nil {
 				return err
 			}
 			configmap.Data["config.yaml"] = string(value)
-			_, err = c.configmapClient.Update(configmap)
+			newcm, err := c.configmapClient.Update(configmap)
 			if err != nil {
 				log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 				return err
 			}
+			log.Infof("Update hpaconfigmap adapter-config %v", newcm)
 			return nil
 		}
 	}
@@ -209,7 +217,7 @@ func FromYAML(contents []byte) (*MetricsDiscoveryConfig, error) {
 }
 
 // generaterule use for generaterule
-func generaterule(app, data, version string) (rule DiscoveryRule) {
+func generaterule(app, data, namespace string) (rule DiscoveryRule) {
 	matched, _ := regexp.MatchString(".*---.*---.*", data)
 	if !matched {
 		return
@@ -235,11 +243,10 @@ func generaterule(app, data, version string) (rule DiscoveryRule) {
 		As:      fmt.Sprintf("${1}%s_%s_%s", metric, funcation, scope),
 	}
 	if scope == "all" {
-		rule.MetricsQuery = fmt.Sprintf(`%s(<<.Series>>{<<.LabelMatchers>>,app="%s",version="%s"}) by (<<.GroupBy>>)`, funcation, app, version)
+		rule.MetricsQuery = fmt.Sprintf(`%s(<<.Series>>{<<.LabelMatchers>>,kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}) by (<<.GroupBy>>)`, funcation, namespace, app)
 	}
 	if scope == "per" {
-		rule.MetricsQuery = fmt.Sprintf(`%s(<<.Series>>{<<.LabelMatchers>>,app="%s",version="%s"}) by (<<.GroupBy>>)`, funcation, app, version)
+		rule.MetricsQuery = fmt.Sprintf(`%s(<<.Series>>{<<.LabelMatchers>>,kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}) by (<<.GroupBy>>)`, funcation, namespace, app)
 	}
-	log.Infoln(rule)
 	return
 }
