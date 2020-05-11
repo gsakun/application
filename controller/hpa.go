@@ -101,60 +101,80 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				}
 				stringmap["config.yaml"] = string(value)
 				object := NewAutoScaleConfigMapObject(component, app, stringmap)
-				log.Infof("NewAutoScaleConfigMapObject %v", object)
+				log.Debugf("NewAutoScaleConfigMapObject %v", object)
 				newconfigmap, err := c.configmapClient.Create(&object)
 				if err != nil {
 					log.Errorf("Create configmap for %s Error : %s\n", "adapter-config", err.Error())
 					return err
 				}
-				log.Infof("Create hpaconfigmap adapter-config %v", newconfigmap)
-			} else {
-				log.Errorf("Get configmap for %s failed", "adapter-config")
-				return err
+				log.Debugf("Create hpaconfigmap adapter-config %v", newconfigmap)
+				return nil
 			}
-		} else {
-			var config MetricsDiscoveryConfig
-			if configmap != nil {
-				value := configmap.Data["config.yaml"]
-				log.Infof("configmap value %v", value)
-				if value == "" {
-					rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
-					config.Rules = append(config.Rules, rule)
+			log.Errorf("Get configmap for %s failed", "adapter-config")
+			return err
+		}
+		var needupdate, exist bool
+		config := new(MetricsDiscoveryConfig)
+		if configmap != nil {
+			value := configmap.Data["config.yaml"]
+			log.Infof("configmap value %v", value)
+			if value == "" {
+				log.Infof("ConfigMap value is null")
+				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
+				config.Rules = append(config.Rules, rule)
+				needupdate = true
+			} else {
+				err := FromYAML(config, []byte(value))
+				if err != nil {
+					return err
+				}
+				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
+				if len(config.Rules) == 0 {
+					log.Infoln("ConfigMap value's rule is null")
+					exist = false
 				} else {
-					data, err := FromYAML([]byte(value))
-					if err != nil {
-						return err
-					}
-					config.Rules = data.Rules
-					rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
-					log.Infof("add new rule %v", rule)
-					for n, i := range data.Rules {
+					for n, i := range config.Rules {
+						if i.SeriesQuery != rule.SeriesQuery {
+							continue
+						}
+						log.Infoln("%s Check to see if an update is needed", i.SeriesQuery)
+						exist = true
 						if reflect.DeepEqual(i, rule) {
-							log.Infoln("equal")
+							log.Debugf("equal")
+							needupdate = false
 							break
 						} else {
-							log.Infoln("add new rule to slice")
-							config.Rules = append(data.Rules[:n], data.Rules[n+1:]...)
-							config.Rules = append(config.Rules, rule)
+							log.Infoln("update rule for %s", rule.SeriesQuery)
+							config.Rules[n] = rule
+							needupdate = true
 							break
 						}
 					}
 				}
+				if !exist {
+					log.Infof("%s not exist,append it", rule.SeriesQuery)
+					config.Rules = append(config.Rules, rule)
+					needupdate = true
+				}
 			}
-			value, err := yaml.Marshal(config)
-			log.Infof("Config %v", config)
-			if err != nil {
-				return err
-			}
-			configmap.Data["config.yaml"] = string(value)
-			newcm, err := c.configmapClient.Update(configmap)
-			if err != nil {
-				log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
-				return err
-			}
-			log.Infof("Update hpaconfigmap adapter-config %v", newcm)
+		}
+		if !needupdate {
 			return nil
 		}
+		value, err := yaml.Marshal(config)
+		log.Infof("Config %v", config)
+		if err != nil {
+			return err
+		}
+		configmap.Data["config.yaml"] = string(value)
+		newcm, err := c.configmapClient.Update(configmap)
+		if err != nil {
+			log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+			return err
+		}
+		log.Infof("Update hpaconfigmap adapter-config %v", newcm)
+		return nil
+
 	}
 	return nil
 }
@@ -208,12 +228,11 @@ func NewAutoScaleConfigMapObject(component *v3.Component, app *v3.Application, d
 }
 
 // FromYAML use for parse FromYAML
-func FromYAML(contents []byte) (*MetricsDiscoveryConfig, error) {
-	var cfg MetricsDiscoveryConfig
-	if err := yaml.UnmarshalStrict(contents, &cfg); err != nil {
-		return nil, fmt.Errorf("unable to parse metrics discovery config: %v", err)
+func FromYAML(cfg *MetricsDiscoveryConfig, contents []byte) error {
+	if err := yaml.UnmarshalStrict(contents, cfg); err != nil {
+		return fmt.Errorf("unable to parse metrics discovery config: %v", err)
 	}
-	return &cfg, nil
+	return nil
 }
 
 // generaterule use for generaterule

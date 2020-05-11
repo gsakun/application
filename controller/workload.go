@@ -393,7 +393,12 @@ func getContainerResources(cc v3.ComponentContainer) corev1.ResourceRequirements
 		corev1.ResourceMemory: resource.MustParse(mem),
 	}
 	if cc.Resources.Gpu > 0 {
-		resources[corev1.ResourceName("nvidia.com/gpu")] = resource.MustParse(string(cc.Resources.Gpu))
+		numGPUs, err := resource.ParseQuantity(string(cc.Resources.Gpu))
+		if err != nil {
+			log.Errorf("Parse GPU NUM Failed %v", err)
+		} else {
+			resources[corev1.ResourceName("nvidia.com/gpu")] = numGPUs
+		}
 	}
 	rr := corev1.ResourceRequirements{
 		Requests: resources,
