@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
-
+	"strconv"
 	log "github.com/sirupsen/logrus"
 
 	"reflect"
@@ -393,12 +393,7 @@ func getContainerResources(cc v3.ComponentContainer) corev1.ResourceRequirements
 		corev1.ResourceMemory: resource.MustParse(mem),
 	}
 	if cc.Resources.Gpu > 0 {
-		numGPUs, err := resource.ParseQuantity(string(cc.Resources.Gpu))
-		if err != nil {
-			log.Errorf("Parse GPU NUM Failed %v", err)
-		} else {
-			resources[corev1.ResourceName("nvidia.com/gpu")] = numGPUs
-		}
+		resources[corev1.ResourceName("nvidia.com/gpu")] = resource.MustParse(strconv.Itoa(cc.Resources.Gpu))
 	}
 	rr := corev1.ResourceRequirements{
 		Requests: resources,

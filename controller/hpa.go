@@ -117,9 +117,9 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 		config := new(MetricsDiscoveryConfig)
 		if configmap != nil {
 			value := configmap.Data["config.yaml"]
-			log.Infof("configmap value %v", value)
+			log.Debugf("configmap value %v", value)
 			if value == "" {
-				log.Infof("ConfigMap value is null")
+				log.Debugf("ConfigMap value is null")
 				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
 				config.Rules = append(config.Rules, rule)
 				needupdate = true
@@ -130,21 +130,21 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				}
 				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
 				if len(config.Rules) == 0 {
-					log.Infoln("ConfigMap value's rule is null")
+					log.Debugln("ConfigMap value's rule is null")
 					exist = false
 				} else {
 					for n, i := range config.Rules {
 						if i.SeriesQuery != rule.SeriesQuery {
 							continue
 						}
-						log.Infoln("%s Check to see if an update is needed", i.SeriesQuery)
+						log.Debugf("%s Check to see if an update is needed", i.SeriesQuery)
 						exist = true
 						if reflect.DeepEqual(i, rule) {
 							log.Debugf("equal")
 							needupdate = false
 							break
 						} else {
-							log.Infoln("update rule for %s", rule.SeriesQuery)
+							log.Debugf("update rule for %s", rule.SeriesQuery)
 							config.Rules[n] = rule
 							needupdate = true
 							break
@@ -152,7 +152,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 					}
 				}
 				if !exist {
-					log.Infof("%s not exist,append it", rule.SeriesQuery)
+					log.Debugf("%s not exist,append it", rule.SeriesQuery)
 					config.Rules = append(config.Rules, rule)
 					needupdate = true
 				}
@@ -162,7 +162,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 			return nil
 		}
 		value, err := yaml.Marshal(config)
-		log.Infof("Config %v", config)
+		log.Debugf("Config %v", config)
 		if err != nil {
 			return err
 		}
@@ -172,7 +172,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 			log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			return err
 		}
-		log.Infof("Update hpaconfigmap adapter-config %v", newcm)
+		log.Debugf("Update hpaconfigmap adapter-config %v", newcm)
 		return nil
 
 	}
@@ -187,12 +187,12 @@ func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application,
 	}
 	log.Infof("Sync autoscale for %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
 	insObject := NewAutoScaleInstance(component, app, ref)
-	log.Infoln(insObject)
+	log.Debugf("AutoScaleObject %v", insObject)
 	//zk
 	insObjectString := GetObjectApplied(insObject)
 	insObject.Annotations = make(map[string]string)
 	insObject.Annotations[LastAppliedConfigAnnotation] = insObjectString
-	instance, err := c.autoscaleLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+component.Version+"hpa")
+	instance, err := c.autoscaleLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+component.Version+"-hpa")
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err = c.autoscaleClient.Create(&insObject)
