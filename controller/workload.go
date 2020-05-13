@@ -3,8 +3,9 @@ package controller
 import (
 	"encoding/json"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
+
 	log "github.com/sirupsen/logrus"
 
 	"reflect"
@@ -20,7 +21,6 @@ import (
 
 // NewConfigMapObject Use for generate ConfigMapObject
 func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.ConfigMap {
-	ownerRef := GetOwnerRef(app)
 	var stringmap map[string]string = make(map[string]string)
 	for _, i := range component.Containers {
 		for _, j := range i.Config {
@@ -29,7 +29,7 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 	}
 	configmap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
 			Name:            app.Name + "-" + component.Name + "-" + component.Version + "-" + "configmap",
 		},
@@ -40,8 +40,6 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 
 // NewSecretObject Use for generate SecretObject
 func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret {
-	ownerRef := GetOwnerRef(app)
-
 	dockercfgJSONContent, err := handleDockerCfgJSONContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
 	if err != nil {
 		log.Errorf("Create docker secret failed for %s %s ", app.Namespace, component.Name)
@@ -51,7 +49,7 @@ func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret
 	datamap[corev1.DockerConfigJsonKey] = dockercfgJSONContent
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
 			Name:            app.Name + "-" + component.Name + "-" + "registry-secret",
 		},
@@ -78,7 +76,7 @@ func handleDockerCfgJSONContent(username, password, email, server string) ([]byt
 
 // NewDeployObject Use for generate DeployObject
 func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.Deployment {
-	ownerRef := GetOwnerRef(app)
+	//ownerRef := GetOwnerRef(app)
 	var volumes []corev1.Volume //zk
 	for _, i := range component.Containers {
 		for _, j := range i.Resources.Volumes {
@@ -114,7 +112,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	}
 	deploy := appsv1beta2.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
 			Name:            app.Name + "-" + component.Name + "-" + "workload" + "-" + component.Version,
 			Labels:          app.Labels,

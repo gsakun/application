@@ -20,7 +20,6 @@ import (
 
 // NewAutoScaleInstance Use for generate NewAutoScaleInstance
 func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) v2beta2.HorizontalPodAutoscaler {
-	ownerRef := GetOwnerRef(app)
 	var metrics []v2beta2.MetricSpec
 	matched, _ := regexp.MatchString(".*---.*---.*", component.OptTraits.Autoscaling.Metric)
 	if matched {
@@ -57,9 +56,9 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 	}
 	hpa := v2beta2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + component.Version + "-hpa",
+			//OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Namespace: app.Namespace,
+			Name:      app.Name + "-" + component.Name + "-" + component.Version + "-hpa",
 		},
 		Spec: v2beta2.HorizontalPodAutoscalerSpec{
 			ScaleTargetRef: v2beta2.CrossVersionObjectReference{
@@ -77,6 +76,7 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 
 func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	if !(reflect.DeepEqual(component.OptTraits.Autoscaling, v3.Autoscaling{})) {
+		log.Infof("Sync hpa for %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
 		c.syncAutoScaleConfigMap(component, app)
 		c.syncAutoScale(component, app, ref)
 	}

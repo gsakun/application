@@ -8,11 +8,9 @@ import (
 
 // NewServiceRoleObject Use for generate ServiceRoleObject
 func NewServiceRoleObject(component *v3.Component, app *v3.Application) istiorbacv1alpha1.ServiceRole {
-	ownerRef := GetOwnerRef(app)
-
 	serviceRole := istiorbacv1alpha1.ServiceRole{
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
 			Name:            app.Name + "-" + component.Name + "-" + "servicerole",
 			Annotations:     map[string]string{},
@@ -31,8 +29,6 @@ func NewServiceRoleObject(component *v3.Component, app *v3.Application) istiorba
 
 // NewServiceRoleBinding Use for generate ServiceRoleBinding
 func NewServiceRoleBinding(component *v3.Component, app *v3.Application) istiorbacv1alpha1.ServiceRoleBinding {
-	//ownerRef := GetOwnerRef(app)
-
 	subjects := []istiorbacv1alpha1.Subject{}
 
 	for _, e := range component.OptTraits.WhiteList.Users {
@@ -51,10 +47,10 @@ func NewServiceRoleBinding(component *v3.Component, app *v3.Application) istiorb
 			APIVersion: "rbac.istio.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			//OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:   app.Namespace,
-			Name:        app.Name + "-" + component.Name + "-" + "servicerolebinding",
-			Annotations: map[string]string{},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
+			Namespace:       app.Namespace,
+			Name:            app.Name + "-" + component.Name + "-" + "servicerolebinding",
+			Annotations:     map[string]string{},
 		},
 		Spec: istiorbacv1alpha1.ServiceRoleBindingSpec{
 			Subjects: subjects,
