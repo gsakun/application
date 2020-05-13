@@ -137,13 +137,13 @@ func Register(ctx context.Context, userContext *config.UserOnlyContext) {
 	c.applicationClient.AddHandler(ctx, "applictionCreateOrUpdate", c.sync)
 }
 
-func (c *controller) sync(key string, application *v3.Application) (runtime.Object, error) {
+func (c *controller) sync(key string, app *v3.Application) (runtime.Object, error) {
 	//log.SetFlags(log.LstdFlags | log.Lshortfile)
-	if application == nil {
+	if app == nil {
 		return nil, nil
 	}
-
-	app := application.DeepCopy()
+	//log.Infof("application info %v", application)
+	//app := application.DeepCopy()
 
 	c.syncNamespaceCommon(app)
 
@@ -168,7 +168,7 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 	var deletelist []string
 	for _, component := range components {
 		delete(oldcomresource, (app.Name + "_" + component.Name + "_" + component.Version))
-		var ownerRefOfDeploy metav1.OwnerReference
+		ownerRefOfDeploy := new(metav1.OwnerReference)
 		if trusted == false {
 			c.syncConfigmaps(&component, app)
 			secretname, _ := c.syncImagePullSecrets(&component, app)
@@ -176,21 +176,22 @@ func (c *controller) sync(key string, application *v3.Application) (runtime.Obje
 				ComponentId:     app.Name + ":" + component.Name + ":" + component.Version,
 				ImagePullSecret: secretname,
 			}
-			err := c.syncWorkload(&component, app, &ownerRefOfDeploy)
+			err := c.syncWorkload(&component, app, ownerRefOfDeploy)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			err := c.syncTrustedWorkload(&component, app, &ownerRefOfDeploy)
+			err := c.syncTrustedWorkload(&component, app, ownerRefOfDeploy)
 			if err != nil {
 				return nil, err
 			}
 		}
+		//log.Infof("ownerRefOfDeploy INFO IS %v", ownerRefOfDeploy)
 		if ownerRefOfDeploy.APIVersion != "" {
-			c.syncHpa(&component, app, &ownerRefOfDeploy)
-			c.syncService(&component, app, &ownerRefOfDeploy)
-			c.syncAuthor(&component, app, &ownerRefOfDeploy)
-			c.syncPolicy(&component, app, &ownerRefOfDeploy)
+			c.syncHpa(&component, app, ownerRefOfDeploy)
+			c.syncService(&component, app, ownerRefOfDeploy)
+			c.syncAuthor(&component, app, ownerRefOfDeploy)
+			c.syncPolicy(&component, app, ownerRefOfDeploy)
 		}
 		if len(component.OptTraits.Fusing.PodList) != 0 {
 			log.Infoln("START FUSING")
@@ -382,7 +383,7 @@ func (c *controller) syncStatus(app *v3.Application) {
 	if err != nil {
 		log.Errorf("Update application for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
 	} else {
-		log.Infof("Update application for %s\n", (app.Namespace + ":" + app.Name))
+		log.Infof("Update application for %s\n Done", (app.Namespace + ":" + app.Name))
 	}
 }
 
@@ -402,10 +403,7 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 				log.Errorf("Create deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 				return err
 			}
-			ref.Name = getdeploy.Name
-			ref.APIVersion = "apps/v1beta2"
-			ref.Kind = "Deployment"
-			ref.UID = getdeploy.ObjectMeta.UID
+			*ref = *(metav1.NewControllerRef(getdeploy, v1beta2.SchemeGroupVersion.WithKind("Deployment")))
 		}
 	} else {
 		if deploy != nil {
@@ -415,16 +413,9 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 					log.Errorf("Update deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 					return err
 				}
-				newdeploy := getdeploy.DeepCopy()
-				ref.Name = newdeploy.Name
-				ref.APIVersion = "apps/v1beta2"
-				ref.Kind = "Deployment"
-				ref.UID = newdeploy.ObjectMeta.UID
+				*ref = *(metav1.NewControllerRef(getdeploy, v1beta2.SchemeGroupVersion.WithKind("Deployment")))
 			} else {
-				ref.Name = deploy.Name
-				ref.APIVersion = "apps/v1beta2"
-				ref.Kind = "Deployment"
-				ref.UID = deploy.ObjectMeta.UID
+				*ref = *(metav1.NewControllerRef(deploy, v1beta2.SchemeGroupVersion.WithKind("Deployment")))
 			}
 		}
 	}
@@ -434,6 +425,7 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 }
 
 func (c *controller) syncService(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
+	log.Infof("Sync service for %s", app.Namespace+":"+component.Name)
 	object := NewServiceObject(component, app)
 	object.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	objectString := GetObjectApplied(object)
@@ -588,7 +580,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	instance, err := c.instanceLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotainstance")
 	if err != nil {
-		log.Infof("Get quotapolicy  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+		//log.Infof("Get quotapolicy  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.instanceClient.Create(&insObject)
 			if err != nil {
@@ -617,7 +609,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	_, err = c.quotaspecLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotaspec")
 	if err != nil {
-		log.Infof("Get quotaspec  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+		//log.Infof("Get quotaspec  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.quotaspecClient.Create(&specObject)
 			if err != nil {
@@ -635,7 +627,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	_, err = c.quotaspecbindingLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotaspecbinding")
 	if err != nil {
-		log.Errorf("Get quotaspecbinding for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+		//log.Errorf("Get quotaspecbinding for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.quotaspecbindingClient.Create(&specbindingObject)
 			if err != nil {
@@ -654,7 +646,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	quotahandler, err := c.handerLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotahandler")
 	if err != nil {
-		log.Errorf("Get quotahandler for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+		//log.Errorf("Get quotahandler for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.handlerClient.Create(qhObject)
 			if err != nil {
@@ -681,7 +673,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 	quotaruleObject.Annotations[LastAppliedConfigAnnotation] = quotaruleObjectString
 	_, err = c.ruleLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotarule")
 	if err != nil {
-		log.Errorf("Get quotarule for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+		//log.Errorf("Get quotarule for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.ruleClient.Create(&quotaruleObject)
 			if err != nil {

@@ -25,10 +25,10 @@ func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Servi
 
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			//OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace:   app.Namespace,
-			Name:        app.Name + "-" + component.Name + "-" + "service",
-			Annotations: map[string]string{},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
+			Namespace:       app.Namespace,
+			Name:            app.Name + "-" + component.Name + "-" + "service",
+			Annotations:     map[string]string{},
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
@@ -44,7 +44,6 @@ func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Servi
 
 // NewVirtualServiceObject Use for generate VirtualServiceObject
 func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istiov1alpha3.VirtualService {
-	ownerRef := GetOwnerRef(app)
 	host := component.OptTraits.Ingress.Host
 	service := app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
 	port := uint32(component.OptTraits.Ingress.ServerPort)
@@ -88,7 +87,7 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 			APIVersion: "networking.istio.io/v1alpha3",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
 			Name:            app.Name + "-" + component.Name + "-" + "vs",
 			Annotations:     map[string]string{},
@@ -105,7 +104,6 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 
 // NewDestinationruleObject Use for generate DestinationruleObject
 func NewDestinationruleObject(component *v3.Component, app *v3.Application) istiov1alpha3.DestinationRule {
-	ownerRef := GetOwnerRef(app)
 	service := app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
 
 	var lbSetting *istiov1alpha3.LoadBalancerSettings
@@ -156,7 +154,7 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 			APIVersion: "networking.istio.io/v1alpha3",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
 			Name:            app.Name + "-" + component.Name + "-" + "destinationrule",
 			Annotations:     map[string]string{},

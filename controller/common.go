@@ -15,36 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetOwnerRef use for generate ownerRefinfo
-func GetOwnerRef(app *v3.Application) metav1.OwnerReference {
-	ownerRef := metav1.OwnerReference{
-		Name:       app.Namespace + ":" + app.Name,
-		APIVersion: app.APIVersion,
-		UID:        app.UID,
-		Kind:       app.Kind,
-	}
-
-	return ownerRef
-}
-
-// GetOwnerRefFromNamespace use for generate GetOwnerRefFromNamespace
-func GetOwnerRefFromNamespace(ns *corev1.Namespace) metav1.OwnerReference {
-	ownerRef := metav1.OwnerReference{
-		Name:       ns.Name,
-		APIVersion: ns.APIVersion,
-		UID:        ns.UID,
-		Kind:       ns.Kind,
-	}
-
-	return ownerRef
-}
-
 // NewGatewayObject use for generate GatewayObject
 func NewGatewayObject(app *v3.Application, ns *corev1.Namespace) istiov1alpha3.Gateway {
-	ownerRef := GetOwnerRefFromNamespace(ns)
 	gateway := istiov1alpha3.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ns, corev1.SchemeGroupVersion.WithKind("Namespace"))},
 			Namespace:       app.Namespace,
 			Name:            app.Namespace + "-" + "gateway",
 		},
@@ -68,8 +43,6 @@ func NewGatewayObject(app *v3.Application, ns *corev1.Namespace) istiov1alpha3.G
 
 // NewPolicyObject use for generate PolicyObject
 func NewPolicyObject(app *v3.Application, ns *corev1.Namespace) istioauthnv1alphav1.Policy {
-	ownerRef := GetOwnerRefFromNamespace(ns)
-
 	authnEndpoint := os.Getenv("AUTHN_ENDPOINT")
 	realm := os.Getenv("AUTHN_REALM")
 
@@ -85,7 +58,7 @@ func NewPolicyObject(app *v3.Application, ns *corev1.Namespace) istioauthnv1alph
 
 	policy := istioauthnv1alphav1.Policy{
 		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ns, corev1.SchemeGroupVersion.WithKind("Namespace"))},
 			Namespace:       app.Namespace,
 			Name:            "default",
 		},
