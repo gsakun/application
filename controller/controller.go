@@ -221,7 +221,7 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 }
 
 func (c *controller) syncNamespaceCommon(app *v3.Application) error {
-	log.Infof("Sync namespaceCommon for %s\n", app.Namespace+":"+app.Name)
+	log.Infof("Sync namespaceCommon for %s", app.Namespace+":"+app.Name)
 
 	var ns *corev1.Namespace
 	var err error
@@ -229,20 +229,20 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 	for i := 0; i < 3; i++ {
 		ns, err = c.nsClient.Get(app.Namespace, metav1.GetOptions{})
 		if err != nil {
-			log.Infof("Get namespace object error for app %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+			log.Infof("Get namespace object error for app %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 		} else {
 			break
 		}
 	}
 	_, err = c.gatewayLister.Get(app.Namespace, (app.Namespace + "-" + "gateway"))
 	if err != nil {
-		log.Infof("Get gateway error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+		log.Infof("Get gateway error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 
 		if errors.IsNotFound(err) {
 			gateway := NewGatewayObject(app, ns)
 			_, err = c.gatewayClient.Create(&gateway)
 			if err != nil {
-				log.Infof("Create gateway error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				log.Infof("Create gateway error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 			}
 		}
 	}
@@ -250,12 +250,12 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 
 	_, err = c.policyLister.Get(app.Namespace, "default")
 	if err != nil {
-		log.Infof("Get policy for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+		log.Infof("Get policy for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 		if errors.IsNotFound(err) {
 			policy := NewPolicyObject(app, ns)
 			_, err = c.policyClient.Create(&policy)
 			if err != nil {
-				log.Infof("Create policy error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				log.Infof("Create policy error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 			}
 		}
 	}
@@ -263,12 +263,12 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 
 	cfg, err := c.clusterconfigLister.Get("", "default")
 	if err != nil {
-		log.Infof("Get clusterrbacconfig for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+		log.Infof("Get clusterrbacconfig for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 		if errors.IsNotFound(err) {
 			clusterConfig := NewClusterRbacConfig(app, ns)
 			_, err = c.clusterconfigClient.Create(&clusterConfig)
 			if err != nil {
-				log.Errorf("Create clusterrbacconfig error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				log.Errorf("Create clusterrbacconfig error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 			}
 		}
 	} else {
@@ -280,7 +280,7 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 				clusterrbacconfig.Namespace = "default" //avoid the client-go bug
 				_, err = c.clusterconfigClient.Update(clusterrbacconfig)
 				if err != nil {
-					log.Errorf("Update clusterrbacconfig error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+					log.Errorf("Update clusterrbacconfig error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				}
 			}
 		}
@@ -306,7 +306,7 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 		if errors.IsNotFound(err) {
 			_, err = c.configmapClient.Create(&object)
 			if err != nil {
-				log.Errorf("Create configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name + ":" + component.Version), err.Error())
+				log.Errorf("Create configmap for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name + ":" + component.Version), err.Error())
 			}
 		} else {
 			log.Errorf("Get configmap for %s failed", configmapname)
@@ -316,7 +316,7 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 			if configmap.Annotations[LastAppliedConfigAnnotation] != appliedString {
 				_, err := c.configmapClient.Update(&object)
 				if err != nil {
-					log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Update configmap for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 					return nil
 				}
 			}
@@ -342,7 +342,7 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 		if errors.IsNotFound(err) {
 			_, err = c.secretClient.Create(&object)
 			if err != nil {
-				log.Errorf("Create secret for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				log.Errorf("Create secret for %s Error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				return "", err
 			}
 			log.Infof("Create Secret %s successful", secretname)
@@ -356,7 +356,7 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 		if secret.Annotations[LastAppliedConfigAnnotation] != appliedString {
 			_, err := c.secretClient.Update(&object)
 			if err != nil {
-				log.Errorf("Update secret for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				log.Errorf("Update secret for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 				return "", err
 			}
 			return secretname, nil
@@ -381,9 +381,9 @@ func (c *controller) syncWorkload(component *v3.Component, app *v3.Application, 
 func (c *controller) syncStatus(app *v3.Application) {
 	_, err := c.applicationClient.Update(app)
 	if err != nil {
-		log.Errorf("Update application for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+		log.Errorf("Update application for %s Error : %s", (app.Namespace + ":" + app.Name), err.Error())
 	} else {
-		log.Infof("Update application for %s\n Done", (app.Namespace + ":" + app.Name))
+		log.Infof("Update application for %s Done", (app.Namespace + ":" + app.Name))
 	}
 }
 
@@ -396,11 +396,11 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 	object.Annotations[LastAppliedConfigAnnotation] = appliedString
 	deploy, err := c.deploymentLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version)
 	if err != nil {
-		//log.Infof("Get deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+		//log.Infof("Get deploy for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			getdeploy, err := c.deploymentClient.Create(&object)
 			if err != nil {
-				log.Errorf("Create deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				log.Errorf("Create deploy for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 				return err
 			}
 			*ref = *(metav1.NewControllerRef(getdeploy, v1beta2.SchemeGroupVersion.WithKind("Deployment")))
@@ -410,7 +410,7 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 			if deploy.Annotations[LastAppliedConfigAnnotation] != appliedString {
 				getdeploy, err := c.deploymentClient.Update(&object)
 				if err != nil {
-					log.Errorf("Update deploy for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Update deploy for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 					return err
 				}
 				*ref = *(metav1.NewControllerRef(getdeploy, v1beta2.SchemeGroupVersion.WithKind("Deployment")))
@@ -438,7 +438,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 		if errors.IsNotFound(err) {
 			_, err = c.serviceClient.Create(&object)
 			if err != nil {
-				log.Errorf("Create service for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				log.Errorf("Create service for %s Error : %s", (app.Namespace + ":" + app.Name), err.Error())
 			}
 		}
 	} else {
@@ -447,7 +447,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 				//c.serviceClient.DeleteNamespaced(service.Namespace, service.Name, &metav1.DeleteOptions{})
 				_, err = c.serviceClient.Update(&object)
 				if err != nil {
-					log.Errorf("Update(Create) Service for %s Error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+					log.Errorf("Update(Create) Service for %s Error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				}
 			}
 		}
@@ -458,7 +458,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 				svcRoleObject := NewServiceRoleObject(component, app)
 				_, err = c.serviceRoleClient.Create(&svcRoleObject)
 				if err != nil {
-					log.Errorf("Create ServiceRole for %s Error : %s\n", (app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Create ServiceRole for %s Error : %s", (app.Name + ":" + component.Name), err.Error())
 				}
 			}
 		}
@@ -472,7 +472,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 		if errors.IsNotFound(err) {
 			_, err = c.virtualServiceClient.Create(&vsObject)
 			if err != nil {
-				log.Errorf("Create VirtualService error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+				log.Errorf("Create VirtualService error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 			}
 		}
 	} else {
@@ -481,7 +481,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 				vsObject.ObjectMeta.ResourceVersion = vs.ObjectMeta.ResourceVersion
 				_, err = c.virtualServiceClient.Update(&vsObject)
 				if err != nil {
-					log.Errorf("Update VirtualService error for %s error : %s\n", (app.Namespace + ":" + app.Name), err.Error())
+					log.Errorf("Update VirtualService error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				}
 			}
 		}
@@ -493,11 +493,11 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 
 		dest, err := c.destLister.Get(app.Namespace, (app.Name + "-" + component.Name + "-" + "destinationrule"))
 		if err != nil {
-			//log.Errorf("Get DestinationRule error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+			//log.Errorf("Get DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			if errors.IsNotFound(err) {
 				_, err = c.destClient.Create(&destObject)
 				if err != nil {
-					log.Errorf("Create DestinationRule error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Create DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 				}
 			}
 		} else {
@@ -507,7 +507,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 					destObject.ObjectMeta.ResourceVersion = dest.ObjectMeta.ResourceVersion
 					_, err := c.destClient.Update(&destObject)
 					if err != nil {
-						log.Errorf("Update DestinationRule error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+						log.Errorf("Update DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 					}
 				}
 			}
@@ -532,7 +532,7 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 			}
 			_, err = c.serviceRoleBindingClient.Create(&object)
 			if err != nil {
-				log.Errorf("Create servicerolebinding error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				log.Errorf("Create servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			}
 		}
 	} else {
@@ -553,7 +553,7 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 				object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
 				_, err = c.serviceRoleBindingClient.Update(&object)
 				if err != nil {
-					log.Errorf("Update servicerolebinding error for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Update servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 				}
 			}
 		}
@@ -569,7 +569,7 @@ func (c *controller) syncPolicy(component *v3.Component, app *v3.Application, re
 }
 
 func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	log.Infof("Sync quotapolicy for %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
+	log.Infof("Sync quotapolicy for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 
 	insObject := NewQuotaInstance(component, app)
 	//zk
@@ -580,11 +580,11 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	instance, err := c.instanceLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotainstance")
 	if err != nil {
-		//log.Infof("Get quotapolicy  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+		//log.Infof("Get quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.instanceClient.Create(&insObject)
 			if err != nil {
-				log.Errorf("Create quotapolicy  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+				log.Errorf("Create quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 				return nil
 			}
 		}
@@ -595,7 +595,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 				insObject.ObjectMeta.ResourceVersion = instance.ObjectMeta.ResourceVersion
 				_, err = c.instanceClient.Update(&insObject)
 				if err != nil {
-					log.Errorf("Update quotapolicy  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+					log.Errorf("Update quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 				}
 			}
 		}
@@ -609,11 +609,11 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	_, err = c.quotaspecLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotaspec")
 	if err != nil {
-		//log.Infof("Get quotaspec  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+		//log.Infof("Get quotaspec  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.quotaspecClient.Create(&specObject)
 			if err != nil {
-				log.Errorf("Create quotaspec  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+				log.Errorf("Create quotaspec  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 				return nil
 			}
 		}
@@ -627,11 +627,11 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	_, err = c.quotaspecbindingLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotaspecbinding")
 	if err != nil {
-		//log.Errorf("Get quotaspecbinding for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+		//log.Errorf("Get quotaspecbinding for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.quotaspecbindingClient.Create(&specbindingObject)
 			if err != nil {
-				log.Errorf("Create quotaspecbinding  for %s error : %s\n", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+				log.Errorf("Create quotaspecbinding  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 				return nil
 			}
 		}
@@ -646,11 +646,11 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 
 	quotahandler, err := c.handerLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotahandler")
 	if err != nil {
-		//log.Errorf("Get quotahandler for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+		//log.Errorf("Get quotahandler for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.handlerClient.Create(qhObject)
 			if err != nil {
-				log.Errorf("Create quotahandler for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+				log.Errorf("Create quotahandler for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 			}
 		}
 	} else {
@@ -660,7 +660,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 				qhObject.ObjectMeta.ResourceVersion = quotahandler.ObjectMeta.ResourceVersion
 				_, err = c.handlerClient.Update(qhObject)
 				if err != nil {
-					log.Errorf("Update quotahandler for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+					log.Errorf("Update quotahandler for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 				}
 			}
 		}
@@ -673,11 +673,11 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 	quotaruleObject.Annotations[LastAppliedConfigAnnotation] = quotaruleObjectString
 	_, err = c.ruleLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotarule")
 	if err != nil {
-		//log.Errorf("Get quotarule for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+		//log.Errorf("Get quotarule for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.ruleClient.Create(&quotaruleObject)
 			if err != nil {
-				log.Errorf("Create quotarule for %s error : %s\n", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+				log.Errorf("Create quotarule for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 			}
 		}
 	}
@@ -691,7 +691,7 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 	if resourceWorkloadType == "deployment" {
 		deploy, err := c.deploymentLister.Get(app.Namespace, component.Name)
 		if err != nil {
-			log.Errorf("Get trusted deploy for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+			log.Errorf("Get trusted deploy for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			return err
 		}
 
@@ -707,7 +707,7 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 			object.Spec.Template.Labels["app"] = key
 			_, err = c.deploymentClient.Update(object)
 			if err != nil {
-				log.Errorf("Update trusted deploy for %s error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				log.Errorf("Update trusted deploy for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			}
 		}
 	}
