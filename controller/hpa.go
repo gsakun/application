@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // NewAutoScaleInstance Use for generate NewAutoScaleInstance
@@ -76,7 +77,7 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 
 func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	if !(reflect.DeepEqual(component.OptTraits.Autoscaling, v3.Autoscaling{})) {
-		log.Infof("Sync hpa for %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
+		log.Infof("Sync hpa for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		c.syncAutoScaleConfigMap(component, app)
 		c.syncAutoScale(component, app, ref)
 	}
@@ -84,7 +85,7 @@ func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *
 }
 
 func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.Application) error {
-	log.Infof("Sync autoscaleconfigmap for %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
+	log.Infof("Sync autoscaleconfigmap for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 	matched, _ := regexp.MatchString(".*---.*---.*", component.OptTraits.Autoscaling.Metric)
 	if matched {
 		configmap, err := c.configmapLister.Get("monitoring", "adapter-config")
@@ -114,6 +115,8 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 			return err
 		}
 		var needupdate, exist bool
+		needupdate = false
+		exist = false
 		config := new(MetricsDiscoveryConfig)
 		if configmap != nil {
 			value := configmap.Data["config.yaml"]
@@ -139,12 +142,12 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 						}
 						log.Debugf("%s Check to see if an update is needed", i.SeriesQuery)
 						exist = true
-						if reflect.DeepEqual(i, rule) {
+						if i.MetricsQuery == rule.MetricsQuery {
 							log.Debugf("equal")
 							needupdate = false
 							break
 						} else {
-							log.Debugf("update rule for %s", rule.SeriesQuery)
+							log.Infof("not equal update rule for %s", rule.SeriesQuery)
 							config.Rules[n] = rule
 							needupdate = true
 							break
@@ -152,7 +155,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 					}
 				}
 				if !exist {
-					log.Debugf("%s not exist,append it", rule.SeriesQuery)
+					log.Infof("%s not exist,append it", rule.SeriesQuery)
 					config.Rules = append(config.Rules, rule)
 					needupdate = true
 				}
@@ -172,6 +175,22 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 			log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			return err
 		}
+		log.Infoln("HPA ConfigMap updated, prometheus-adapter pod need update config too")
+		pods, err := c.podLister.List("monitoring", labels.Everything())
+		if err != nil {
+			log.Errorf("Get %s pods failed", "monitoring")
+		}
+		for _, i := range pods {
+			log.Infof("Namespace %s pod name %s", i.Namespace, i.Name)
+			deletePolicy := metav1.DeletePropagationBackground
+			err = c.podClient.DeleteNamespaced(i.Namespace, i.Name, &metav1.DeleteOptions{
+				PropagationPolicy: &deletePolicy,
+			})
+			if err != nil {
+				log.Errorf("Delete %s pod %s failed", i.Namespace, i.Name)
+			}
+		}
+
 		log.Debugf("Update hpaconfigmap adapter-config %v", newcm)
 		return nil
 
@@ -185,7 +204,7 @@ func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application,
 		log.Infof("This app don't need to configure autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		return nil
 	}
-	log.Infof("Sync autoscale for %s .......\n", app.Namespace+":"+app.Name+"-"+component.Name)
+	log.Infof("Sync autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 	insObject := NewAutoScaleInstance(component, app, ref)
 	log.Debugf("AutoScaleObject %v", insObject)
 	//zk
