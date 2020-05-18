@@ -26,6 +26,9 @@ var (
 )
 
 func init() {
+	if os.Getenv("REDIS_SERVER") == "" || os.Getenv("AUTHN_ENDPOINT") == "" || os.Getenv("AUTHN_REALM") == "" || os.Getenv("PROXYIMAGE") == "" {
+		log.Fatalf("Please check env settings (%s %s %s %s)", "REDIS_SERVER", "AUTHN_ENDPOINT", "AUTHN_REALM", "PROXYIMAGE")
+	}
 	loglevel := os.Getenv("LOG_LEVEL")
 	log.Infof("loglevel env is %s", loglevel)
 	if loglevel == "debug" {
