@@ -291,7 +291,7 @@ func (c *controller) syncNamespaceCommon(app *v3.Application) error {
 }
 
 func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application) error {
-	log.Infof("Sync configmap  for %s", app.Namespace+":"+component.Name+":"+component.Version)
+	log.Infof("Sync configmap for %s", app.Namespace+":"+component.Name+":"+component.Version)
 	object := NewConfigMapObject(component, app)
 	if len(object.Data) == 0 {
 		log.Debugf("ConfigMap data is nil, Do not need sync configmap for %s", app.Namespace+":"+app.Name+":"+component.Name+":"+component.Version)
