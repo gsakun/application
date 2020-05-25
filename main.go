@@ -12,6 +12,7 @@ import (
 	//"github.com/rancher/norman/leader"
 	"github.com/rancher/norman/store/crd"
 	"github.com/rancher/norman/store/proxy"
+	"github.com/snowzach/rotatefilehook"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/hd-Li/application/controller"
 	projectschema "github.com/hd-Li/types/apis/project.cattle.io/v3/schema"
 	projectclient "github.com/hd-Li/types/client/project/v3"
+	colorable "github.com/mattn/go-colorable"
 )
 
 var (
@@ -30,19 +32,38 @@ func init() {
 		log.Fatalf("Please check env settings (%s %s %s %s)", "REDIS_SERVER", "AUTHN_ENDPOINT", "AUTHN_REALM", "PROXYIMAGE")
 	}
 	loglevel := os.Getenv("LOG_LEVEL")
+	var logLevel log.Level
 	log.Infof("loglevel env is %s", loglevel)
 	if loglevel == "debug" {
 		log.SetLevel(log.DebugLevel)
+		logLevel = log.DebugLevel
 		log.Infof("log level is %s", loglevel)
 		log.SetReportCaller(true)
 	} else {
 		log.SetLevel(log.InfoLevel)
+		logLevel = log.InfoLevel
 		log.Infoln("log level is normal")
 	}
-	log.SetFormatter(&log.TextFormatter{
-		DisableColors: false,
-		FullTimestamp: true,
+	rotateFileHook, err := rotatefilehook.NewRotateFileHook(rotatefilehook.RotateFileConfig{
+		Filename:   "logs/console.log",
+		MaxSize:    50, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28, //days
+		Level:      logLevel,
+		Formatter: &log.JSONFormatter{
+			TimestampFormat: "2006-01-02 15:04:05",
+		},
 	})
+	log.SetOutput(colorable.NewColorableStdout())
+	if err != nil {
+		log.Fatalf("Failed to initialize file rotate hook: %v", err)
+	}
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp:   true,
+		TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:     true,
+	})
+	log.AddHook(rotateFileHook)
 	//todo print log with code line
 	//log.SetFlags(log.LstdFlags | log.Lshortfile)
 }

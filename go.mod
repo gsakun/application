@@ -11,10 +11,13 @@ require (
 	github.com/hd-Li/types v0.0.0-20200108072342-40227b4a545d
 	github.com/knative/pkg v0.0.0-20190817231834-12ee58e32cc8
 	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/prometheus/common v0.9.1
 	github.com/rancher/norman v0.0.0-20190319175355-e10534b012b0
 	github.com/sirupsen/logrus v1.4.2
+	github.com/snowzach/rotatefilehook v0.0.0-20180327172521-2f64f265f58c // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0-20190409021203-6e4e0e4f393b
 	k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
