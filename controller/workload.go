@@ -24,6 +24,10 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 	var stringmap map[string]string = make(map[string]string)
 	for _, i := range component.Containers {
 		for _, j := range i.Config {
+			if j.FileName == "" {
+				log.Errorf("%s-%s's configmap configuration's filename is nil,please check configration")
+				continue
+			}
 			stringmap[j.FileName] = j.Value
 		}
 	}
@@ -93,6 +97,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 		}
 		for _, k := range i.Config {
+			if k.FileName == "" {
+				continue
+			}
 			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
 				VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -297,6 +304,9 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			})
 		}
 		for _, k := range cc.Config {
+			if k.FileName == "" {
+				continue
+			}
 			volumes = append(volumes, corev1.VolumeMount{
 				Name:      component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
 				MountPath: k.Path + "/" + k.FileName,
@@ -522,7 +532,7 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 	if reflect.DeepEqual(cc.Lifecycle, v3.CLifecycle{}) {
 		return lifecycle
 	}
-	log.Infof("Container info is %v", cc)
+	log.Debugf("Container info is %v", cc)
 	if cc.Lifecycle.PostStart != nil {
 		if !reflect.DeepEqual(cc.Lifecycle.PostStart.Exec, v3.ExecAction{}) {
 			if len(cc.Lifecycle.PostStart.Exec.Command) != 0 {

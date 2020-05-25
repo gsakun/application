@@ -171,10 +171,17 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 		ownerRefOfDeploy := new(metav1.OwnerReference)
 		if trusted == false {
 			c.syncConfigmaps(&component, app)
-			secretname, _ := c.syncImagePullSecrets(&component, app)
-			app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
-				ComponentId:     app.Name + ":" + component.Name + ":" + component.Version,
-				ImagePullSecret: secretname,
+			if component.DevTraits.ImagePullConfig.Username == "" || component.DevTraits.ImagePullConfig.Registry == "" || component.DevTraits.ImagePullConfig.Password == "" {
+				log.Errorf("Component %s-%s's imagepullconfig need review", component.Name, component.Version)
+				app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
+					ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
+				}
+			} else {
+				secretname, _ := c.syncImagePullSecrets(&component, app)
+				app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
+					ComponentId:     app.Name + ":" + component.Name + ":" + component.Version,
+					ImagePullSecret: secretname,
+				}
 			}
 			err := c.syncWorkload(&component, app, ownerRefOfDeploy)
 			if err != nil {
@@ -686,6 +693,7 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 	return nil
 }
 
+// sync trusted workload
 func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
 	resourceWorkloadType := "deployment"
 	if resourceWorkloadType == "deployment" {
@@ -694,28 +702,29 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 			log.Errorf("Get trusted deploy for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			return err
 		}
-
-		ref.Name = deploy.Name
-		ref.APIVersion = "apps/v1beta2"
-		ref.Kind = "Deployment"
-		ref.UID = deploy.ObjectMeta.UID
-
+		*ref = *(metav1.NewControllerRef(deploy, v1beta2.SchemeGroupVersion.WithKind("Deployment")))
+		/*		ref.Name = deploy.Name
+				ref.APIVersion = "apps/v1beta2"
+				ref.Kind = "Deployment"
+				ref.UID = deploy.ObjectMeta.UID*/
 		object := deploy.DeepCopy()
 		key := app.Name + "-" + component.Name + "-" + "workload"
 
 		if val, _ := object.Spec.Template.Labels["app"]; val != key {
 			object.Spec.Template.Labels["app"] = key
-			_, err = c.deploymentClient.Update(object)
+			newdeploy, err := c.deploymentClient.Update(object)
 			if err != nil {
 				log.Errorf("Update trusted deploy for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				return err
 			}
+			*ref = *(metav1.NewControllerRef(newdeploy, v1beta2.SchemeGroupVersion.WithKind("Deployment")))
 		}
 	}
 
 	return nil
 }
 
-// zk update component state
+// zk update component state delete not exist version
 func (c *controller) gc(namespace string, deletelist []string) (errlist []string) {
 	for _, i := range deletelist {
 		slices := strings.Split(i, "_")
@@ -725,7 +734,7 @@ func (c *controller) gc(namespace string, deletelist []string) (errlist []string
 			PropagationPolicy: &deletePolicy,
 		})
 		if err != nil {
-			log.Errorln(err)
+			log.Errorf("Delete Workload %s failed errinfo: %v", workloadname, err)
 			errlist = append(errlist, i)
 		}
 	}
