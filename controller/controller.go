@@ -171,16 +171,20 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 		ownerRefOfDeploy := new(metav1.OwnerReference)
 		if trusted == false {
 			c.syncConfigmaps(&component, app)
-			if component.DevTraits.ImagePullConfig.Username == "" || component.DevTraits.ImagePullConfig.Registry == "" || component.DevTraits.ImagePullConfig.Password == "" {
-				log.Errorf("Component %s-%s's imagepullconfig need review", component.Name, component.Version)
-				app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
-					ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
-				}
+			if reflect.DeepEqual(component.DevTraits.ImagePullConfig, v3.ImagePullConfig{}) {
+				log.Debugf("Component %s's image pull configuration is not configured,ignore it")
 			} else {
-				secretname, _ := c.syncImagePullSecrets(&component, app)
-				app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
-					ComponentId:     app.Name + ":" + component.Name + ":" + component.Version,
-					ImagePullSecret: secretname,
+				if component.DevTraits.ImagePullConfig.Username == "" || component.DevTraits.ImagePullConfig.Registry == "" || component.DevTraits.ImagePullConfig.Password == "" {
+					log.Errorf("Component %s-%s's imagepullconfig need review", component.Name, component.Version)
+					app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
+						ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
+					}
+				} else {
+					secretname, _ := c.syncImagePullSecrets(&component, app)
+					app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
+						ComponentId:     app.Name + ":" + component.Name + ":" + component.Version,
+						ImagePullSecret: secretname,
+					}
 				}
 			}
 			err := c.syncWorkload(&component, app, ownerRefOfDeploy)
