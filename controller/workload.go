@@ -25,7 +25,7 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 	for _, i := range component.Containers {
 		for _, j := range i.Config {
 			if j.FileName == "" {
-				log.Errorf("%s-%s configmap configuration's filename is nil,please check configration")
+				log.Errorf("%s-%s's configmap configuration's filename is nil,please check configration", component.Name, component.Version)
 				continue
 			}
 			stringmap[j.FileName] = j.Value
