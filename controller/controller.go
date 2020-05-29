@@ -497,7 +497,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 			}
 		}
 	}
-	if component.DevTraits.IngressLB.ConsistentType != "" || component.DevTraits.IngressLB.LBType != "" || !(reflect.DeepEqual(component.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
+	if !(reflect.DeepEqual(component.DevTraits.IngressLB, v3.IngressLB{})) || !(reflect.DeepEqual(component.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
 		destObject := NewDestinationruleObject(component, app)
 		destObjectString := GetObjectApplied(destObject)
 		destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
