@@ -22,13 +22,13 @@ import (
 // NewAutoScaleInstance Use for generate NewAutoScaleInstance
 func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) v2beta2.HorizontalPodAutoscaler {
 	var metrics []v2beta2.MetricSpec
-	matched, _ := regexp.MatchString(".*---.*---.*", component.OptTraits.Autoscaling.Metric)
+	matched, _ := regexp.MatchString(".*---.*---.*", component.ComponentTraits.Autoscaling.Metric)
 	if matched {
-		split := strings.Split(component.OptTraits.Autoscaling.Metric, "---")
+		split := strings.Split(component.ComponentTraits.Autoscaling.Metric, "---")
 		funcation := string(split[0])
 		metric := string(split[1])
 		scope := string(split[2])
-		threshold := strconv.FormatInt(int64(component.OptTraits.Autoscaling.Threshold), 10)
+		threshold := strconv.FormatInt(int64(component.ComponentTraits.Autoscaling.Threshold), 10)
 		value := resource.MustParse(threshold)
 		metrics = append(metrics, v2beta2.MetricSpec{
 			Type: v2beta2.PodsMetricSourceType,
@@ -43,15 +43,15 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 			},
 		})
 	}
-	if component.OptTraits.Autoscaling.Metric == "cpu" || component.OptTraits.Autoscaling.Metric == "memory" {
+	if component.ComponentTraits.Autoscaling.Metric == "cpu" || component.ComponentTraits.Autoscaling.Metric == "memory" {
 		metrics = append(metrics, v2beta2.MetricSpec{
 			Type: v2beta2.ResourceMetricSourceType,
 			Resource: &v2beta2.ResourceMetricSource{
 				Target: v2beta2.MetricTarget{
 					Type:               "Utilization",
-					AverageUtilization: &component.OptTraits.Autoscaling.Threshold,
+					AverageUtilization: &component.ComponentTraits.Autoscaling.Threshold,
 				},
-				Name: corev1.ResourceName(component.OptTraits.Autoscaling.Metric),
+				Name: corev1.ResourceName(component.ComponentTraits.Autoscaling.Metric),
 			},
 		})
 	}
@@ -67,8 +67,8 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 				Name:       app.Name + "-" + component.Name + "-" + "workload" + "-" + component.Version,
 				APIVersion: ref.APIVersion,
 			},
-			MinReplicas: &component.OptTraits.Autoscaling.MinReplicas,
-			MaxReplicas: component.OptTraits.Autoscaling.MaxReplicas,
+			MinReplicas: &component.ComponentTraits.Autoscaling.MinReplicas,
+			MaxReplicas: component.ComponentTraits.Autoscaling.MaxReplicas,
 			Metrics:     metrics,
 		},
 	}
@@ -76,7 +76,7 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 }
 
 func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	if !(reflect.DeepEqual(component.OptTraits.Autoscaling, v3.Autoscaling{})) {
+	if !(reflect.DeepEqual(component.ComponentTraits.Autoscaling, v3.Autoscaling{})) {
 		log.Infof("Sync hpa for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		c.syncAutoScaleConfigMap(component, app)
 		c.syncAutoScale(component, app, ref)
@@ -86,7 +86,7 @@ func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *
 
 func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.Application) error {
 	log.Infof("Sync autoscaleconfigmap for %s", app.Namespace+":"+app.Name+"-"+component.Name)
-	matched, _ := regexp.MatchString(".*---.*---.*", component.OptTraits.Autoscaling.Metric)
+	matched, _ := regexp.MatchString(".*---.*---.*", component.ComponentTraits.Autoscaling.Metric)
 	if matched {
 		configmap, err := c.configmapLister.Get("monitoring", "adapter-config")
 		if err != nil {
@@ -94,7 +94,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				log.Infoln("Configmap adapter-config not found,then create it")
 				var stringmap map[string]string = make(map[string]string)
 				var config MetricsDiscoveryConfig
-				rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.OptTraits.Autoscaling.Metric, component.Version)
+				rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.ComponentTraits.Autoscaling.Metric, component.Version)
 				config.Rules = append(config.Rules, rule)
 				value, err := yaml.Marshal(config)
 				if err != nil {
@@ -123,7 +123,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 			log.Debugf("configmap value %v", value)
 			if value == "" {
 				log.Debugf("ConfigMap value is null")
-				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
+				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.ComponentTraits.Autoscaling.Metric, app.Namespace)
 				config.Rules = append(config.Rules, rule)
 				needupdate = true
 			} else {
@@ -131,7 +131,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				if err != nil {
 					return err
 				}
-				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.OptTraits.Autoscaling.Metric, app.Namespace)
+				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.ComponentTraits.Autoscaling.Metric, app.Namespace)
 				if len(config.Rules) == 0 {
 					log.Debugln("ConfigMap value's rule is null")
 					exist = false
@@ -200,7 +200,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 
 // syncAutoScale use for syncAutoScale
 func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	if component.OptTraits.Autoscaling.Metric == "" {
+	if component.ComponentTraits.Autoscaling.Metric == "" {
 		log.Infof("This app don't need to configure autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		return nil
 	}

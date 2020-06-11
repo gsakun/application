@@ -12,14 +12,12 @@ import (
 )
 
 // NewServiceObject Use for generate ServiceObject
-func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Service {
+func NewServiceObject(app *v3.Application) corev1.Service {
 	//ownerRef := GetOwnerRef(app)
-	serverPort := component.OptTraits.Ingress.ServerPort
-
 	port := corev1.ServicePort{
-		Name:       "http" + "-" + component.Name,
-		Port:       serverPort,
-		TargetPort: intstr.FromInt(int(serverPort)),
+		Name:       "http" + "-" + app.Name,
+		Port:       app.Spec.OptTraits.Ingress.ServerPort,
+		TargetPort: intstr.FromInt(int(app.Spec.OptTraits.Ingress.ServerPort)),
 		Protocol:   corev1.ProtocolTCP,
 	}
 
@@ -27,12 +25,12 @@ func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Servi
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "service",
+			Name:            app.Name + "-" + "service",
 			Annotations:     map[string]string{},
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{
-				"app":    app.Name + "-" + component.Name + "-" + "workload",
+				"app":    app.Name + "-" + "workload",
 				"inpool": "yes",
 			},
 			Ports: []corev1.ServicePort{port},
@@ -43,10 +41,10 @@ func NewServiceObject(component *v3.Component, app *v3.Application) corev1.Servi
 }
 
 // NewVirtualServiceObject Use for generate VirtualServiceObject
-func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istiov1alpha3.VirtualService {
-	host := component.OptTraits.Ingress.Host
-	service := app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
-	port := uint32(component.OptTraits.Ingress.ServerPort)
+func NewVirtualServiceObject(app *v3.Application) istiov1alpha3.VirtualService {
+	host := app.Spec.OptTraits.Ingress.Host
+	service := app.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
+	port := uint32(app.Spec.OptTraits.Ingress.ServerPort)
 	//var matchlist []istiov1alpha3.HTTPMatchRequest
 
 	var httproutes []istiov1alpha3.HTTPRoute
@@ -55,11 +53,24 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 		Match: []istiov1alpha3.HTTPMatchRequest{
 			{
 				Uri: &v1alpha1.StringMatch{
-					Prefix: component.OptTraits.Ingress.Path,
+					Prefix: app.Spec.OptTraits.Ingress.Path,
 				},
 			},
 		},
-		Route: []istiov1alpha3.DestinationWeight{
+		/*		Route: []istiov1alpha3.DestinationWeight{
+				{
+					Destination: istiov1alpha3.Destination{
+						Host: service,
+						Port: istiov1alpha3.PortSelector{
+							Number: port,
+						},
+					},
+				},
+			},*/
+	}
+	// add GrayRelease handlelogic
+	if len(app.Spec.OptTraits.GrayRelease) == 0 {
+		httproute.Route = []istiov1alpha3.DestinationWeight{
 			{
 				Destination: istiov1alpha3.Destination{
 					Host: service,
@@ -68,13 +79,25 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 					},
 				},
 			},
-		},
+		}
+	} else {
+		for version, weight := range app.Spec.OptTraits.GrayRelease {
+			httproute.Route = append(httproute.Route, istiov1alpha3.DestinationWeight{
+				Destination: istiov1alpha3.Destination{
+					Host: service,
+					Port: istiov1alpha3.PortSelector{
+						Number: port,
+					},
+					Subset: version,
+				},
+				Weight: weight,
+			})
+		}
 	}
-
-	if !(reflect.DeepEqual(component.OptTraits.HttpRetry, v3.HttpRetry{})) {
+	if !(reflect.DeepEqual(app.Spec.OptTraits.HTTPRetry, v3.HTTPRetry{})) {
 		httproute.Retries = &istiov1alpha3.HTTPRetry{
-			Attempts:      component.OptTraits.HttpRetry.Attempts,
-			PerTryTimeout: component.OptTraits.HttpRetry.PerTryTimeout,
+			Attempts:      app.Spec.OptTraits.HTTPRetry.Attempts,
+			PerTryTimeout: app.Spec.OptTraits.HTTPRetry.PerTryTimeout,
 			RetryOn:       "5xx,gateway-error,connect-failure,refused-stream",
 		}
 	}
@@ -89,7 +112,7 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "vs",
+			Name:            app.Name + "-" + "vs",
 			Annotations:     map[string]string{},
 		},
 		Spec: istiov1alpha3.VirtualServiceSpec{
@@ -103,8 +126,8 @@ func NewVirtualServiceObject(component *v3.Component, app *v3.Application) istio
 }
 
 // NewDestinationruleObject Use for generate DestinationruleObject
-func NewDestinationruleObject(component *v3.Component, app *v3.Application) istiov1alpha3.DestinationRule {
-	service := app.Name + "-" + component.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
+func NewDestinationruleObject(app *v3.Application) istiov1alpha3.DestinationRule {
+	service := app.Name + "-" + "service" + "." + app.Namespace + ".svc.cluster.local"
 	trafficPolicy := new(istiov1alpha3.TrafficPolicy)
 	destinationrule := istiov1alpha3.DestinationRule{
 		TypeMeta: metav1.TypeMeta{
@@ -114,7 +137,7 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "destinationrule",
+			Name:            app.Name + "-" + "destinationrule",
 			Annotations:     map[string]string{},
 		},
 		Spec: istiov1alpha3.DestinationRuleSpec{
@@ -123,7 +146,18 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 		},
 	}
 
-	if component.DevTraits.IngressLB.ConsistentType != "" {
+	if len(app.Spec.OptTraits.GrayRelease) != 0 {
+		for k := range app.Spec.OptTraits.GrayRelease {
+			var labels map[string]string = make(map[string]string)
+			labels["version"] = k
+			destinationrule.Spec.Subsets = append(destinationrule.Spec.Subsets, istiov1alpha3.Subset{
+				Name:   k,
+				Labels: labels,
+			})
+		}
+	}
+
+	if app.Spec.OptTraits.LoadBalancer.ConsistentHash.UseSourceIP {
 		lbsetting := new(istiov1alpha3.LoadBalancerSettings)
 		hashlb := new(istiov1alpha3.ConsistentHashLB)
 		hashlb = &istiov1alpha3.ConsistentHashLB{
@@ -131,47 +165,47 @@ func NewDestinationruleObject(component *v3.Component, app *v3.Application) isti
 		}
 		lbsetting.ConsistentHash = hashlb
 		trafficPolicy.LoadBalancer = lbsetting
-	} else if lbType := component.DevTraits.IngressLB.LBType; lbType != "" {
+	} else if lbType := app.Spec.OptTraits.LoadBalancer.Simple; lbType != "" {
 		lbsetting := new(istiov1alpha3.LoadBalancerSettings)
 		switch lbType {
-		case "rr":
+		case "ROUND_ROBIN":
 			lbsetting.Simple = istiov1alpha3.SimpleLBRoundRobin
-		case "leastConn":
+		case "LEAST_CONN":
 			lbsetting.Simple = istiov1alpha3.SimpleLBLeastConn
-		case "random":
+		case "RANDOM":
 			lbsetting.Simple = istiov1alpha3.SimpleLBRandom
 		}
 		trafficPolicy.LoadBalancer = lbsetting
 	}
-	if !reflect.DeepEqual(component.OptTraits.CircuitBreaking.ConnectionPool, v3.ConnectionPoolSettings{}) {
+	if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.ConnectionPool, v3.ConnectionPoolSettings{}) {
 		connectionPoolsetting := new(istiov1alpha3.ConnectionPoolSettings)
 		trafficPolicy.ConnectionPool = connectionPoolsetting
-		if !reflect.DeepEqual(component.OptTraits.CircuitBreaking.ConnectionPool.TCP, v3.TCPSettings{}) {
+		if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP, v3.TCPSettings{}) {
 			tcpsettings := new(istiov1alpha3.TCPSettings)
 			tcpsettings = &istiov1alpha3.TCPSettings{
-				MaxConnections: component.OptTraits.CircuitBreaking.ConnectionPool.TCP.MaxConnections,
-				ConnectTimeout: component.OptTraits.CircuitBreaking.ConnectionPool.TCP.ConnectTimeout,
+				MaxConnections: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP.MaxConnections,
+				ConnectTimeout: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP.ConnectTimeout,
 			}
 			connectionPoolsetting.Tcp = tcpsettings
 		}
-		if !reflect.DeepEqual(component.OptTraits.CircuitBreaking.ConnectionPool.HTTP, v3.HTTPSettings{}) {
+		if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP, v3.HTTPSettings{}) {
 			httpsettings := new(istiov1alpha3.HTTPSettings)
 			httpsettings = &istiov1alpha3.HTTPSettings{
-				Http1MaxPendingRequests:  component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP1MaxPendingRequests,
-				Http2MaxRequests:         component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP2MaxRequests,
-				MaxRequestsPerConnection: component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRequestsPerConnection,
-				MaxRetries:               component.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRetries,
+				Http1MaxPendingRequests:  app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP1MaxPendingRequests,
+				Http2MaxRequests:         app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP2MaxRequests,
+				MaxRequestsPerConnection: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRequestsPerConnection,
+				MaxRetries:               app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRetries,
 			}
 			connectionPoolsetting.Http = httpsettings
 		}
 	}
-	if !reflect.DeepEqual(component.OptTraits.CircuitBreaking.OutlierDetection, v3.OutlierDetection{}) {
+	if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.OutlierDetection, v3.OutlierDetection{}) {
 		outlierDetection := new(istiov1alpha3.OutlierDetection)
 		outlierDetection = &istiov1alpha3.OutlierDetection{
-			ConsecutiveErrors:  component.OptTraits.CircuitBreaking.OutlierDetection.ConsecutiveErrors,
-			Interval:           component.OptTraits.CircuitBreaking.OutlierDetection.Interval,
-			BaseEjectionTime:   component.OptTraits.CircuitBreaking.OutlierDetection.BaseEjectionTime,
-			MaxEjectionPercent: component.OptTraits.CircuitBreaking.OutlierDetection.MaxEjectionPercent,
+			ConsecutiveErrors:  app.Spec.OptTraits.CircuitBreaking.OutlierDetection.ConsecutiveErrors,
+			Interval:           app.Spec.OptTraits.CircuitBreaking.OutlierDetection.Interval,
+			BaseEjectionTime:   app.Spec.OptTraits.CircuitBreaking.OutlierDetection.BaseEjectionTime,
+			MaxEjectionPercent: app.Spec.OptTraits.CircuitBreaking.OutlierDetection.MaxEjectionPercent,
 		}
 		trafficPolicy.OutlierDetection = outlierDetection
 	}

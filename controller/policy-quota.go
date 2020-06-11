@@ -9,7 +9,7 @@ import (
 )
 
 // NewQuotaInstance Use for generate QuotaInstance
-func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Instance {
+func NewQuotaInstance(app *v3.Application) v1alpha2.Instance {
 	instance := v1alpha2.Instance{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "instance",
@@ -18,7 +18,7 @@ func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Ins
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotainstance",
+			Name:            app.Name + "-" + "quotainstance",
 			Annotations:     map[string]string{},
 		},
 		Spec: v1alpha2.InstanceSpec{
@@ -38,9 +38,9 @@ func NewQuotaInstance(component *v3.Component, app *v3.Application) v1alpha2.Ins
 }
 
 // NewQuotaSpec Use for generate QuotaSpec
-func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSpec {
+func NewQuotaSpec(app *v3.Application) v1alpha2.QuotaSpec {
 	quota := v1alpha2.Quota{
-		Quota:  app.Name + "-" + component.Name + "-" + "quotainstance",
+		Quota:  app.Name + "-" + "quotainstance",
 		Charge: 1,
 	}
 
@@ -56,7 +56,7 @@ func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSp
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotaspec",
+			Name:            app.Name + "-" + "quotaspec",
 			Annotations:     map[string]string{},
 		},
 		Spec: v1alpha2.QuotaSubSpec{
@@ -68,14 +68,14 @@ func NewQuotaSpec(component *v3.Component, app *v3.Application) v1alpha2.QuotaSp
 }
 
 // NewQuotaSpecBinding Use for generate QuotaSpecBinding
-func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.QuotaSpecBinding {
+func NewQuotaSpecBinding(app *v3.Application) v1alpha2.QuotaSpecBinding {
 	istioService := v1alpha2.IstioService{
-		Name:      app.Name + "-" + component.Name + "-" + "service",
+		Name:      app.Name + "-" + "service",
 		Namespace: app.Namespace,
 	}
 
 	quotaSpecReference := v1alpha2.QuotaSpecBindingQuotaSpecReference{
-		Name:      app.Name + "-" + component.Name + "-" + "quotaspec",
+		Name:      app.Name + "-" + "quotaspec",
 		Namespace: app.Namespace,
 	}
 
@@ -87,7 +87,7 @@ func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotaspecbinding",
+			Name:            app.Name + "-" + "quotaspecbinding",
 			Annotations:     map[string]string{},
 		},
 		Spec: v1alpha2.QuotaSpecBindingSpec{
@@ -100,11 +100,11 @@ func NewQuotaSpecBinding(component *v3.Component, app *v3.Application) v1alpha2.
 }
 
 // NewQuotaHandlerObject Use for generate QuotaHandlerObject
-func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alpha2.Handler {
+func NewQuotaHandlerObject(app *v3.Application) *v1alpha2.Handler {
 	redisServer := os.Getenv("REDIS_SERVER")
 
 	overrides := []v1alpha2.Override{}
-	for _, v := range component.OptTraits.RateLimit.Overrides {
+	for _, v := range app.Spec.OptTraits.RateLimit.Overrides {
 		override := v1alpha2.Override{
 			MaxAmount: v.RequestAmount,
 			Dimensions: map[string]string{
@@ -115,9 +115,9 @@ func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alph
 	}
 
 	handlerquota := v1alpha2.HandlerQuota{
-		Name:               app.Name + "-" + component.Name + "-" + "quotainstance" + "." + "instance" + "." + app.Namespace,
-		MaxAmount:          component.OptTraits.RateLimit.RequestAmount,
-		ValidDuration:      component.OptTraits.RateLimit.TimeDuration,
+		Name:               app.Name + "-" + "quotainstance" + "." + "instance" + "." + app.Namespace,
+		MaxAmount:          app.Spec.OptTraits.RateLimit.RequestAmount,
+		ValidDuration:      app.Spec.OptTraits.RateLimit.TimeDuration,
 		BucketDuration:     "200ms",
 		RateLimitAlgorithm: v1alpha2.ROLLING,
 		Overrides:          overrides,
@@ -131,7 +131,7 @@ func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alph
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotahandler",
+			Name:            app.Name + "-" + "quotahandler",
 			Annotations:     map[string]string{},
 		},
 		Spec: v1alpha2.HandlerSpec{
@@ -148,10 +148,10 @@ func NewQuotaHandlerObject(component *v3.Component, app *v3.Application) *v1alph
 }
 
 // NewQuotaRuleObject Use for generate QuotaRuleObject
-func NewQuotaRuleObject(component *v3.Component, app *v3.Application) v1alpha2.Rule {
-	instance := app.Name + "-" + component.Name + "-" + "quotainstance" + "." + "instance" + "." + app.Namespace
+func NewQuotaRuleObject(app *v3.Application) v1alpha2.Rule {
+	instance := app.Name + "-" + "quotainstance" + "." + "instance" + "." + app.Namespace
 	action := v1alpha2.Action{
-		Handler:   app.Name + "-" + component.Name + "-" + "quotahandler" + "." + "handler" + "." + app.Namespace,
+		Handler:   app.Name + "-" + "quotahandler" + "." + "handler" + "." + app.Namespace,
 		Instances: []string{instance},
 	}
 
@@ -163,7 +163,7 @@ func NewQuotaRuleObject(component *v3.Component, app *v3.Application) v1alpha2.R
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "quotarule",
+			Name:            app.Name + "-" + "quotarule",
 			Annotations:     map[string]string{},
 		},
 		Spec: v1alpha2.RuleSpec{

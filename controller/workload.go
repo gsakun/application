@@ -43,10 +43,10 @@ func NewConfigMapObject(component *v3.Component, app *v3.Application) corev1.Con
 }
 
 // NewSecretObject Use for generate SecretObject
-func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret {
-	dockercfgJSONContent, err := handleDockerCfgJSONContent(component.DevTraits.ImagePullConfig.Username, component.DevTraits.ImagePullConfig.Password, "", component.DevTraits.ImagePullConfig.Registry)
+func NewSecretObject(app *v3.Application) corev1.Secret {
+	dockercfgJSONContent, err := handleDockerCfgJSONContent(app.Spec.OptTraits.ImagePullConfig.Username, app.Spec.OptTraits.ImagePullConfig.Password, "", app.Spec.OptTraits.ImagePullConfig.Registry)
 	if err != nil {
-		log.Errorf("Create docker secret failed for %s %s ", app.Namespace, component.Name)
+		log.Errorf("Create docker secret failed for %s", app.Namespace)
 		return corev1.Secret{}
 	}
 	datamap := map[string][]byte{}
@@ -55,7 +55,7 @@ func NewSecretObject(component *v3.Component, app *v3.Application) corev1.Secret
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))},
 			Namespace:       app.Namespace,
-			Name:            app.Name + "-" + component.Name + "-" + "registry-secret",
+			Name:            app.Name + "-" + "registry-secret",
 		},
 		Data: datamap,
 		Type: corev1.SecretTypeDockerConfigJson,
@@ -127,17 +127,17 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		},
 		Spec: appsv1beta2.DeploymentSpec{
 			//add replicas
-			Replicas: &component.OptTraits.ManualScaler.Replicas,
+			Replicas: &component.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app":     app.Name + "-" + component.Name + "-" + "workload",
+					"app":     app.Name + "-" + "workload",
 					"version": component.Version,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":     app.Name + "-" + component.Name + "-" + "workload",
+						"app":     app.Name + "-" + "workload",
 						"version": component.Version,
 						"inpool":  "yes",
 					},
@@ -151,22 +151,22 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			},
 		},
 	}
-	if !reflect.DeepEqual(component.OptTraits.SchedulePolicy, v3.SchedulePolicy{}) {
-		if component.OptTraits.SchedulePolicy.NodeSelector != nil {
-			deploy.Spec.Template.Spec.NodeSelector = component.OptTraits.SchedulePolicy.NodeSelector
+	if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy, v3.SchedulePolicy{}) {
+		if component.ComponentTraits.SchedulePolicy.NodeSelector != nil {
+			deploy.Spec.Template.Spec.NodeSelector = component.ComponentTraits.SchedulePolicy.NodeSelector
 		}
-		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
+		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
 			deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
-			if component.OptTraits.SchedulePolicy.NodeAffinity.HardAffinity {
+			if component.ComponentTraits.SchedulePolicy.NodeAffinity.HardAffinity {
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity = new(corev1.NodeAffinity)
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
 					NodeSelectorTerms: []corev1.NodeSelectorTerm{
 						{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
-									Key:      component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
-									Operator: corev1.NodeSelectorOperator(component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
-									Values:   component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
+									Key:      component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
+									Operator: corev1.NodeSelectorOperator(component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
 								},
 							},
 						},
@@ -180,9 +180,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 						Preference: corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
-									Key:      component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
-									Operator: corev1.NodeSelectorOperator(component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
-									Values:   component.OptTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
+									Key:      component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Key,
+									Operator: corev1.NodeSelectorOperator(component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement.Values,
 								},
 							},
 						},
@@ -190,11 +190,11 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				}
 			}
 		}
-		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.PodAffinity, v3.CPodAffinity{}) {
+		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAffinity, v3.CPodAffinity{}) {
 			if deploy.Spec.Template.Spec.Affinity != nil {
 				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			}
-			if component.OptTraits.SchedulePolicy.PodAffinity.HardAffinity {
+			if component.ComponentTraits.SchedulePolicy.PodAffinity.HardAffinity {
 				deploy.Spec.Template.Spec.Affinity.PodAffinity = new(corev1.PodAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
 					{
@@ -202,9 +202,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 						LabelSelector: &metav1.LabelSelector{
 							MatchExpressions: []metav1.LabelSelectorRequirement{
 								{
-									Key:      component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
-									Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
-									Values:   component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
+									Key:      component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
+									Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
 								},
 							},
 						},
@@ -220,9 +220,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									{
-										Key:      component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
-										Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
-										Values:   component.OptTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
+										Key:      component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
+										Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
+										Values:   component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
 									},
 								},
 							},
@@ -232,11 +232,11 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 		}
 
-		if !reflect.DeepEqual(component.OptTraits.SchedulePolicy.PodAntiAffinity, v3.CPodAntiAffinity{}) {
+		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAntiAffinity, v3.CPodAntiAffinity{}) {
 			if deploy.Spec.Template.Spec.Affinity != nil {
 				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			}
-			if component.OptTraits.SchedulePolicy.PodAntiAffinity.HardAffinity {
+			if component.ComponentTraits.SchedulePolicy.PodAntiAffinity.HardAffinity {
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity = new(corev1.PodAntiAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
 					{
@@ -244,9 +244,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 						LabelSelector: &metav1.LabelSelector{
 							MatchExpressions: []metav1.LabelSelectorRequirement{
 								{
-									Key:      component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
-									Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
-									Values:   component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
+									Key:      component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
+									Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
+									Values:   component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
 								},
 							},
 						},
@@ -262,9 +262,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									{
-										Key:      component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
-										Operator: metav1.LabelSelectorOperator(component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
-										Values:   component.OptTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
+										Key:      component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
+										Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
+										Values:   component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
 									},
 								},
 							},
@@ -275,10 +275,10 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		}
 
 	}
-	if component.OptTraits.TerminationGracePeriodSeconds > 30 {
-		deploy.Spec.Template.Spec.TerminationGracePeriodSeconds = &component.OptTraits.TerminationGracePeriodSeconds
+	if component.ComponentTraits.TerminationGracePeriodSeconds > 30 {
+		deploy.Spec.Template.Spec.TerminationGracePeriodSeconds = &component.ComponentTraits.TerminationGracePeriodSeconds
 	}
-	if component.OptTraits.CustomMetric.Enable && component.OptTraits.CustomMetric.Uri != "" {
+	if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
 		deploy.Spec.Template.Annotations = make(map[string]string)
 		deploy.Spec.Template.Annotations["prometheus.io/path"] = "/metrics"
 		deploy.Spec.Template.Annotations["prometheus.io/port"] = "16666"
@@ -344,7 +344,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			}
 		}
 		containers = append(containers, container)
-		if component.OptTraits.CustomMetric.Enable && component.OptTraits.CustomMetric.Uri != "" {
+		if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
 			containers = append(containers, corev1.Container{
 				Name:            "transter-proxy",
 				Image:           os.Getenv("PROXYIMAGE"),
@@ -376,7 +376,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 					},
 					{
 						Name:  "URI",
-						Value: component.OptTraits.CustomMetric.Uri,
+						Value: component.ComponentTraits.CustomMetric.Uri,
 					},
 				},
 			})
