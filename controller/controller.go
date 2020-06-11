@@ -165,28 +165,21 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 		oldcomresource = app.DeepCopy().Status.ComponentResource
 	}
 	app.Status.ComponentResource = make(map[string]v3.ComponentResources)
+	/*if reflect.DeepEqual(app.Spec.OptTraits.ImagePullConfig, v3.ImagePullConfig{}) {
+		log.Debugf("Component %s's image pull configuration is not configured,ignore it")
+	} else {
+		if app.Spec.OptTraits.ImagePullConfig.Username == "" || app.Spec.OptTraits.ImagePullConfig.Registry == "" || app.Spec.OptTraits.ImagePullConfig.Password == "" {
+			log.Errorf("Component %s's imagepullconfig need review", app.Name)
+		} else {
+			_, _ = c.syncImagePullSecrets(app)
+		}
+	}*/ //Not needed for the time being
 	var deletelist []string
 	for _, component := range components {
 		delete(oldcomresource, (app.Name + "_" + component.Name + "_" + component.Version))
 		ownerRefOfDeploy := new(metav1.OwnerReference)
 		if trusted == false {
 			c.syncConfigmaps(&component, app)
-			if reflect.DeepEqual(component.DevTraits.ImagePullConfig, v3.ImagePullConfig{}) {
-				log.Debugf("Component %s's image pull configuration is not configured,ignore it")
-			} else {
-				if component.DevTraits.ImagePullConfig.Username == "" || component.DevTraits.ImagePullConfig.Registry == "" || component.DevTraits.ImagePullConfig.Password == "" {
-					log.Errorf("Component %s-%s's imagepullconfig need review", component.Name, component.Version)
-					app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
-						ComponentId: app.Name + ":" + component.Name + ":" + component.Version,
-					}
-				} else {
-					secretname, _ := c.syncImagePullSecrets(&component, app)
-					app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
-						ComponentId:     app.Name + ":" + component.Name + ":" + component.Version,
-						ImagePullSecret: secretname,
-					}
-				}
-			}
 			err := c.syncWorkload(&component, app, ownerRefOfDeploy)
 			if err != nil {
 				return nil, err
@@ -200,22 +193,22 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 		//log.Infof("ownerRefOfDeploy INFO IS %v", ownerRefOfDeploy)
 		if ownerRefOfDeploy.APIVersion != "" {
 			c.syncHpa(&component, app, ownerRefOfDeploy)
-			c.syncService(&component, app, ownerRefOfDeploy)
-			c.syncAuthor(&component, app, ownerRefOfDeploy)
-			c.syncPolicy(&component, app, ownerRefOfDeploy)
-		}
-		if len(component.OptTraits.Fusing.PodList) != 0 {
-			log.Infoln("START FUSING")
-			var action bool = false
-			if component.OptTraits.Fusing.Action == "in" {
-				action = true
-			}
-			for _, i := range component.OptTraits.Fusing.PodList {
-				c.syncFusing(i, app.Namespace, action)
-			}
-			component.OptTraits.Fusing = v3.Fusing{}
 		}
 	}
+	if len(app.Spec.OptTraits.Fusing.PodList) != 0 {
+		log.Infoln("START FUSING")
+		var action bool = false
+		if app.Spec.OptTraits.Fusing.Action == "in" {
+			action = true
+		}
+		for _, i := range app.Spec.OptTraits.Fusing.PodList {
+			c.syncFusing(i, app.Namespace, action)
+		}
+		app.Spec.OptTraits.Fusing = v3.Fusing{}
+	}
+	c.syncService(app)
+	c.syncAuthor(app)
+	c.syncPolicy(app)
 	for k := range oldcomresource {
 		deletelist = append(deletelist, k)
 	}
@@ -336,16 +329,16 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 	return nil
 }
 
-func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Application) (string, error) {
-	log.Infof("Sync imagepull secret for %s", app.Namespace+":"+component.Name)
-	object := NewSecretObject(component, app)
+func (c *controller) syncImagePullSecrets(app *v3.Application) (string, error) {
+	log.Infof("Sync imagepull secret for %s", app.Namespace)
+	object := NewSecretObject(app)
 	if len(object.Data) == 0 {
-		log.Debugf("ImagePullSecret not define,ignore %s", app.Namespace+":"+app.Name+":"+component.Name+":"+component.Version)
+		log.Debugf("ImagePullSecret not define,ignore %s", app.Namespace+":"+app.Name)
 		return "", nil
 	}
 	appliedString := GetObjectApplied(object)
 
-	secretname := app.Name + "-" + component.Name + "-" + "registry-secret"
+	secretname := app.Name + "-" + "registry-secret"
 	secret, err := c.secretLister.Get(app.Namespace, secretname)
 	object.Annotations = make(map[string]string)
 	object.Annotations[LastAppliedConfigAnnotation] = appliedString
@@ -367,7 +360,7 @@ func (c *controller) syncImagePullSecrets(component *v3.Component, app *v3.Appli
 		if secret.Annotations[LastAppliedConfigAnnotation] != appliedString {
 			_, err := c.secretClient.Update(&object)
 			if err != nil {
-				log.Errorf("Update secret for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				log.Errorf("Update secret for %s Error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				return "", err
 			}
 			return secretname, nil
@@ -435,16 +428,16 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 	return nil
 }
 
-func (c *controller) syncService(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	log.Infof("Sync service for %s", app.Namespace+":"+component.Name)
-	object := NewServiceObject(component, app)
-	object.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
+func (c *controller) syncService(app *v3.Application) error {
+	log.Infof("Sync service for %s", app.Name)
+	object := NewServiceObject(app)
+	object.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(app, v3.SchemeGroupVersion.WithKind("Application"))}
 	objectString := GetObjectApplied(object)
 	//zk
 	object.Annotations = make(map[string]string)
 	object.Annotations[LastAppliedConfigAnnotation] = objectString
 
-	service, err := c.serviceLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"service")
+	service, err := c.serviceLister.Get(app.Namespace, app.Name+"-"+"service")
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err = c.serviceClient.Create(&object)
@@ -463,22 +456,22 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 			}
 		}
 
-		_, err = c.serviceRoleLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"servicerole")
+		_, err = c.serviceRoleLister.Get(app.Namespace, app.Name+"-"+"servicerole")
 		if err != nil {
 			if errors.IsNotFound(err) {
-				svcRoleObject := NewServiceRoleObject(component, app)
+				svcRoleObject := NewServiceRoleObject(app)
 				_, err = c.serviceRoleClient.Create(&svcRoleObject)
 				if err != nil {
-					log.Errorf("Create ServiceRole for %s Error : %s", (app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Create ServiceRole for %s Error : %s", (app.Name), err.Error())
 				}
 			}
 		}
 	}
-	vsObject := NewVirtualServiceObject(component, app)
+	vsObject := NewVirtualServiceObject(app)
 	vsObjectString := GetObjectApplied(vsObject)
 	vsObject.Annotations[LastAppliedConfigAnnotation] = vsObjectString
 
-	vs, err := c.virtualServiceLister.Get(app.Namespace, (app.Name + "-" + component.Name + "-" + "vs"))
+	vs, err := c.virtualServiceLister.Get(app.Namespace, (app.Name + "-" + "vs"))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err = c.virtualServiceClient.Create(&vsObject)
@@ -497,18 +490,18 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 			}
 		}
 	}
-	if !(reflect.DeepEqual(component.DevTraits.IngressLB, v3.IngressLB{})) || !(reflect.DeepEqual(component.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
-		destObject := NewDestinationruleObject(component, app)
+	if !(reflect.DeepEqual(app.Spec.OptTraits.LoadBalancer, v3.LoadBalancerSettings{})) || !(reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
+		destObject := NewDestinationruleObject(app)
 		destObjectString := GetObjectApplied(destObject)
 		destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
 
-		dest, err := c.destLister.Get(app.Namespace, (app.Name + "-" + component.Name + "-" + "destinationrule"))
+		dest, err := c.destLister.Get(app.Namespace, (app.Name + "-" + "destinationrule"))
 		if err != nil {
 			//log.Errorf("Get DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 			if errors.IsNotFound(err) {
 				_, err = c.destClient.Create(&destObject)
 				if err != nil {
-					log.Errorf("Create DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Create DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				}
 			}
 		} else {
@@ -518,7 +511,7 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 					destObject.ObjectMeta.ResourceVersion = dest.ObjectMeta.ResourceVersion
 					_, err := c.destClient.Update(&destObject)
 					if err != nil {
-						log.Errorf("Update DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+						log.Errorf("Update DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 					}
 				}
 			}
@@ -527,9 +520,8 @@ func (c *controller) syncService(component *v3.Component, app *v3.Application, r
 
 	return nil
 }
-func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	object := NewServiceRoleBinding(component, app)
-	object.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
+func (c *controller) syncAuthor(app *v3.Application) error {
+	object := NewServiceRoleBinding(app)
 	objectString := GetObjectApplied(object)
 	object.Annotations = make(map[string]string)
 	object.Annotations[LastAppliedConfigAnnotation] = objectString
@@ -537,34 +529,34 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 	serviceRoleBinding, err := c.serviceRoleBindingLister.Get(app.Namespace, object.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if len(component.OptTraits.WhiteList.Users) == 0 {
+			if len(app.Spec.OptTraits.WhiteList.Users) == 0 {
 				log.Infoln("whitelist.user is nil,there is nothing to do")
 				return nil
 			}
 			_, err = c.serviceRoleBindingClient.Create(&object)
 			if err != nil {
-				log.Errorf("Create servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+				log.Errorf("Create servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 			}
 		}
 	} else {
 		if serviceRoleBinding != nil {
 			if serviceRoleBinding.Annotations[LastAppliedConfigAnnotation] != objectString {
-				if len(component.OptTraits.WhiteList.Users) == 0 {
-					log.Infof("whitelist is null ,need delete servicerolebinding and servicerole for %s", app.Name+"-"+component.Name)
-					err = c.serviceRoleBindingClient.DeleteNamespaced(app.Namespace, app.Name+"-"+component.Name+"-"+"servicerolebinding", &metav1.DeleteOptions{})
+				if len(app.Spec.OptTraits.WhiteList.Users) == 0 {
+					log.Infof("whitelist is null ,need delete servicerolebinding and servicerole for %s", app.Name)
+					err = c.serviceRoleBindingClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerolebinding", &metav1.DeleteOptions{})
 					if err != nil {
 						log.Errorln(err)
 					}
-					err = c.serviceRoleClient.DeleteNamespaced(app.Namespace, app.Name+"-"+component.Name+"-"+"servicerole", &metav1.DeleteOptions{})
+					err = c.serviceRoleClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerole", &metav1.DeleteOptions{})
 					if err != nil {
 						log.Errorln(err)
 					}
 					return nil
 				}
-				object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
+				//object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
 				_, err = c.serviceRoleBindingClient.Update(&object)
 				if err != nil {
-					log.Errorf("Update servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+					log.Errorf("Update servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				}
 			}
 		}
@@ -572,30 +564,29 @@ func (c *controller) syncAuthor(component *v3.Component, app *v3.Application, re
 	return nil
 }
 
-func (c *controller) syncPolicy(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	if component.OptTraits.RateLimit.TimeDuration != "" {
-		c.syncQuotaPolicy(component, app, ref)
+func (c *controller) syncPolicy(app *v3.Application) error {
+	if app.Spec.OptTraits.RateLimit.TimeDuration != "" {
+		c.syncQuotaPolicy(app)
 	}
 	return nil
 }
 
-func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	log.Infof("Sync quotapolicy for %s", app.Namespace+":"+app.Name+"-"+component.Name)
+func (c *controller) syncQuotaPolicy(app *v3.Application) error {
+	log.Infof("Sync quotapolicy for %s", app.Namespace+":"+app.Name)
 
-	insObject := NewQuotaInstance(component, app)
+	insObject := NewQuotaInstance(app)
 	//zk
-	insObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
 	insObjectString := GetObjectApplied(insObject)
 	insObject.Annotations = make(map[string]string)
 	insObject.Annotations[LastAppliedConfigAnnotation] = insObjectString
 
-	instance, err := c.instanceLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotainstance")
+	instance, err := c.instanceLister.Get(app.Namespace, app.Name+"-"+"quotainstance")
 	if err != nil {
 		//log.Infof("Get quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.instanceClient.Create(&insObject)
 			if err != nil {
-				log.Errorf("Create quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+				log.Errorf("Create quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				return nil
 			}
 		}
@@ -606,62 +597,59 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 				insObject.ObjectMeta.ResourceVersion = instance.ObjectMeta.ResourceVersion
 				_, err = c.instanceClient.Update(&insObject)
 				if err != nil {
-					log.Errorf("Update quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+					log.Errorf("Update quotapolicy  for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				}
 			}
 		}
 	}
 	//config for client
-	specObject := NewQuotaSpec(component, app)
-	specObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
+	specObject := NewQuotaSpec(app)
 	specObjectString := GetObjectApplied(specObject)
 	specObject.Annotations = make(map[string]string)
 	specObject.Annotations[LastAppliedConfigAnnotation] = specObjectString
 
-	_, err = c.quotaspecLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotaspec")
+	_, err = c.quotaspecLister.Get(app.Namespace, app.Name+"-"+"quotaspec")
 	if err != nil {
 		//log.Infof("Get quotaspec  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.quotaspecClient.Create(&specObject)
 			if err != nil {
-				log.Errorf("Create quotaspec  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+				log.Errorf("Create quotaspec  for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				return nil
 			}
 		}
 	}
 
-	specbindingObject := NewQuotaSpecBinding(component, app)
-	specbindingObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
+	specbindingObject := NewQuotaSpecBinding(app)
 	specbindingObjectString := GetObjectApplied(specbindingObject)
 	specbindingObject.Annotations = make(map[string]string)
 	specbindingObject.Annotations[LastAppliedConfigAnnotation] = specbindingObjectString
 
-	_, err = c.quotaspecbindingLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotaspecbinding")
+	_, err = c.quotaspecbindingLister.Get(app.Namespace, app.Name+"-"+"quotaspecbinding")
 	if err != nil {
 		//log.Errorf("Get quotaspecbinding for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.quotaspecbindingClient.Create(&specbindingObject)
 			if err != nil {
-				log.Errorf("Create quotaspecbinding  for %s error : %s", (app.Namespace + ":" + app.Name + "-" + component.Name), err.Error())
+				log.Errorf("Create quotaspecbinding  for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				return nil
 			}
 		}
 	}
 
 	//config for (mixer) server
-	qhObject := NewQuotaHandlerObject(component, app)
-	qhObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
+	qhObject := NewQuotaHandlerObject(app)
 	qhObjectString := GetObjectApplied(qhObject)
 	qhObject.Annotations = make(map[string]string)
 	qhObject.Annotations[LastAppliedConfigAnnotation] = qhObjectString
 
-	quotahandler, err := c.handerLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotahandler")
+	quotahandler, err := c.handerLister.Get(app.Namespace, app.Name+"-"+"quotahandler")
 	if err != nil {
 		//log.Errorf("Get quotahandler for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.handlerClient.Create(qhObject)
 			if err != nil {
-				log.Errorf("Create quotahandler for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+				log.Errorf("Create quotahandler for %s error : %s", app.Namespace+":"+app.Name, err.Error())
 			}
 		}
 	} else {
@@ -671,24 +659,23 @@ func (c *controller) syncQuotaPolicy(component *v3.Component, app *v3.Applicatio
 				qhObject.ObjectMeta.ResourceVersion = quotahandler.ObjectMeta.ResourceVersion
 				_, err = c.handlerClient.Update(qhObject)
 				if err != nil {
-					log.Errorf("Update quotahandler for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+					log.Errorf("Update quotahandler for %s error : %s", app.Namespace+":"+app.Name, err.Error())
 				}
 			}
 		}
 	}
 
-	quotaruleObject := NewQuotaRuleObject(component, app)
-	quotaruleObject.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ref}
+	quotaruleObject := NewQuotaRuleObject(app)
 	quotaruleObjectString := GetObjectApplied(quotaruleObject)
 	quotaruleObject.Annotations = make(map[string]string)
 	quotaruleObject.Annotations[LastAppliedConfigAnnotation] = quotaruleObjectString
-	_, err = c.ruleLister.Get(app.Namespace, app.Name+"-"+component.Name+"-"+"quotarule")
+	_, err = c.ruleLister.Get(app.Namespace, app.Name+"-"+"quotarule")
 	if err != nil {
 		//log.Errorf("Get quotarule for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
 		if errors.IsNotFound(err) {
 			_, err = c.ruleClient.Create(&quotaruleObject)
 			if err != nil {
-				log.Errorf("Create quotarule for %s error : %s", app.Namespace+":"+app.Name+"-"+component.Name, err.Error())
+				log.Errorf("Create quotarule for %s error : %s", app.Namespace+":"+app.Name, err.Error())
 			}
 		}
 	}
