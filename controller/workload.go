@@ -114,8 +114,12 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	}
 	containers, _ := getContainers(component)
 	var imagepullsecret []corev1.LocalObjectReference
-	if app.Status.ComponentResource[(app.Name+"_"+component.Name+"_"+component.Version)].ImagePullSecret != "" {
+	/*if app.Status.ComponentResource[(app.Name+"_"+component.Name+"_"+component.Version)].ImagePullSecret != "" {
 		imagepullsecret = append(imagepullsecret, corev1.LocalObjectReference{Name: app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)].ImagePullSecret})
+	}*/
+	ztsecret := os.Getenv("ADMIN_IMAGEPULL_SECRET_NAME")
+	if ztsecret != "" {
+		imagepullsecret = append(imagepullsecret, corev1.LocalObjectReference{Name: ztsecret})
 	}
 	deploy := appsv1beta2.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -127,7 +131,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		},
 		Spec: appsv1beta2.DeploymentSpec{
 			//add replicas
-			Replicas: &component.Replicas,
+			Replicas: &component.ComponentTraits.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app":     app.Name + "-" + "workload",
@@ -381,6 +385,43 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 				},
 			})
 		}
+		/*if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
+			containers = append(containers, corev1.Container{
+				Name:            "transter-proxy",
+				Image:           os.Getenv("PROXYIMAGE"),
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Env: []corev1.EnvVar{
+					{
+						Name: "POD_NAME",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "metadata.name",
+							}},
+					},
+					{
+						Name: "POD_NAMESPACE",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "metadata.namespace",
+							}},
+					},
+					{
+						Name: "POD_IP",
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "status.podIP",
+							}},
+					},
+					{
+						Name:  "URI",
+						Value: component.ComponentTraits.CustomMetric.Uri,
+					},
+				},
+			})
+		}*/ // TODO add container log collect sidecar
 	}
 
 	return containers, nil
