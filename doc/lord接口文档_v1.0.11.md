@@ -1368,273 +1368,260 @@ https://10.10.111.54:444/v3-public/localProviders/local?action=login
 1. 服务容器配置
    1. 容器配置
       - 容器基本配置（components.[].containers[](name image imagePullPolicy Command args)）√
-      - 镜像拉取秘钥配置（components.[].devTraits.imagePullConfig）√
+      - 容器副本数配置 （**components.[].componentTraits.replicas** ~~components.[]optTraits.manualScaler.replicas~~）√ 
+      - 镜像拉取秘钥配置（**optTraits.imagePullConfig** ~~components.[].devTraits.imagePullConfig~~）√ (暂时不需要开发)
       - 计算资源配置以及本地目录挂载(components.[].containers[].resources) √
       - configmap 配置 (components.[].containers[].config) √
       - 环境变量配置 （components.[].containers[].env）√
       - 容器健康状态检查（components.[].containers[].livenessProbe）√
       - 容器服务状态检查(components.[].containers[].readinessProbe) √
       - 容器退出预处理（components.[].containers[].lifecycle.preStop）√
-      - 容器调度策略（components.[].optTraits.schedulePolicy）√
+      - 容器自定义退出时间（**components.[].componentTraits.terminationGracePeriodSeconds** ~~components.[].optTraits.terminationGracePeriodSeconds~~）
+      - 容器调度策略（**components.[].componentTraits.schedulePolicy**  ~~components.[].optTraits.schedulePolicy~~）√ 
+      - 容器自定义metric配置（**components.[].componentTraits.custommetric**）√ 
+      - 容器自定义日志采集配置(**components.[].componentTraits.logcollect**) x
 2. 服务治理配置
-   - 负载均衡策略（components.[].devTraits.ingressLB）√
-   - 路由规则配置 （components.[].optTraits.ingress）√
-   - 手动熔断配置 （components.[].optTraits.fusing）√
-   - 自动熔断配置 （components.[].optTraits.circuitbreaking）√
-   - 限流配置 （components.[].optTraits.rateLimit）√
-   - 访问控制白名单配置 （components.[].optTraits.whiteList）√
-   - httpRetry 连接重试逻辑（components.[].optTraits.httpretry）√
-   - 自动扩缩逻辑 （components.[].optTraits.autoscaling）√
+   - 负载均衡策略（**optTraits.loadBalancer**  ~~components.[].devTraits.ingressLB~~）√ 
+   - 路由规则配置 （**optTraits.ingress** ~~components.[].optTraits.ingress~~）√
+   - 手动熔断配置 （**optTraits.fusing ** ~~components.[].optTraits.fusing~~）√
+   - 自动熔断配置 （**optTraits.circuitbreaking ** ~~components.[].optTraits.circuitbreaking~~）√
+   - 限流配置 （**optTraits.rateLimit** ~~components.[].optTraits.rateLimit~~）√
+   - 访问控制白名单配置 **optTraits.whiteList** ~~components.[].optTraits.whiteList~~）√
+   - httpRetry 连接重试逻辑（**optTraits.httpretry** ~~components.[].optTraits.httpretry~~）√
+   - 自动扩缩逻辑 （**components.[].componentTraits.autoscaling** ~~components.[].optTraits.autoscaling~~）√
+   - 灰度发布（**optTraits.grayRelease**）√ 
+3. changelog
+   - 上述字段 容器自定义metric配置 容器自定义日志采集配置 灰度发布为新增字段 其余加粗字段为修改字段
 
 ## 数据定义
 
 ```json
 {
-	"name": string, # 必选 application Name
-	"namespaceId": string, # 必选 应用部署目标Namespace
-    "labels": map[string]string， #必选 必须添加此格式Label "projectId": "c-x67ps_p-sjjrk"，applicationTemplateId(template名称)
-	"annotations": map[string]string, #可选
+	"name": "String", // 必选 application Name
+	"namespaceId": "string", // 必选 应用部署目标Namespace
+	"labels": "map[string]string"， //必选 必须添加此格式Label "projectId": "c-x67ps_p-sjjrk"，applicationTemplateId(template名称)
+	"annotations": "map[string]string", //可选 可作为后期功能扩展字段
 	"components": [{
-        "name": string, # 必选 组件名
-        "workloadType": string, # 服务类型 仅支持"Server"
-	    "workloadSettings": [{
-           "name": string,
-           "type": string,
-           "value": string,
-           "fromparam": string
-         }], # 可选
-		"version": string, # 必选
+		"name": "string", // 必选 组件名
+		"workloadType": "string", // 服务类型 目前仅支持"Server"
+		"workloadSettings": [{
+			"name": "string",
+			"type": "string",
+			"value": "string",
+			"fromparam": "string"
+		}], // 扩展字段 可选
+		"version": "string", // 服务版本 必选
 		"parameters": [{
-               	"name": string,
-                "description":string,
-                "type": string,
-                "required": bool,
-                "default": string
-            }], # 可选
-		"containers" : [{
-            "name": string, # 必选 容器名
-            "command": []string， #可选 命令
-    		"args": []string, #可选 参数
-            "config": [{
-                "path": string, #(必选）挂载到容器内路径
-                "fileName": string #（必选）挂载到容器内的文件名
-                "value": string #（必选）文件内容
-			}], #可选 通过该项为容器创建configmap资源并挂载 
-    		"env": [{
-                "fromParam": string, #可选 见示例2 目前只支持(spec.nodeName 对应所在主机名 metadata.name 获取容器名 metadata.namespace获取所在namespace status.podIP获取容器ip)
-                "name": string,  #必选
-                "value": string #（必选）  ##说明 如果fromparam不为空 value不需要再填 
-            }], #可选 用于配置环境变量
-            "image": string, # 必选项
-            "imagePullPolicy": string, # 可选项 镜像拉取策略 默认为Always 可填字段仅限于Always，IfNotPresent，Never。
-            "imagePullSecrets": [{
-                "name": string
-            }], #可选项 镜像拉取密钥
-            "livenessProbe": {
-                "exec": {
-                   command: []string, # 可选项 在容器内执行指定命令。如果命令退出时返回码为 0 则表明容器健康
-                },
-                "httpGet": {
-               		"port": int, # (必选)
-                 	"path": string, # (必选)
-                	"httpHeaders": [{
-                	   "name": string, # (必选)
-                	   "value": string # (必选)
-            		}] # 可选 配置请求头
-            	}， # 可选 通过httpGet判断容器内服务健康状态
-				"tcpSocket": {
-                	"port": int， # 可选 配置监听容器内端口健康状态
-            	}, ## ！！！ exec httpGet tcpSocket 三项只能选其中一项
-				"initialDelaySeconds": int， # 容器启动和探针启动之间的秒数
-				"periodSeconds": int, 检查的频率（以秒为单位）。默认为10秒。最小值为1。
-				"timeoutSeconds": int # 配置检查超时时间
-				"successThreshold": int # 查成功的最小连续成功次数。默认为1.活跃度必须为1。最小值为1
-				"failureThreshold": int # 当Pod成功启动且检查失败时，Kubernetes将在放弃之前尝试failureThreshold次。放弃生存检查意味着重新启动Pod。而放弃就绪检查，Pod将被标记为未就绪。默认为3.最小值为1。
-            }, # 可选项 判断容器是否存活策略配置 见示例3
-			"ports": [{
-                "containerPort": int, #可选 容器内服务监听端口
-                "name": string, #可选
-                "protocol": string #可选
-            }]，# 可选
-            "readinessProbe": {
-                内容于livenessProbe一致
-            }, # 可选项 用于判断容器服务状态如果异常则从service endpoint列表移除
-			"lifecycle": {
-                "postStart": {
-                    # 同Prestop相同 目前不需要
-                },
-                "preStop": {
-                   "exec": {
-                      command: []string, # 可选项 在容器内执行指定命令或脚本，做容器退出前的清理工作。
-                    },
-                   "httpGet": {
-               		  "port": int, # (必选)
-                 	  "path": string, # (必选)
-                	  "httpHeaders": [{
-                	     "name": string, # (必选)
-                	     "value": string # (必选)
-            		  }] # 可选 配置请求头
-            	    }， # 可选 通过httpGet判断容器内服务健康状态
-				   "tcpSocket": {
-                	  "port": int， # 可选 配置监听容器内端口健康状态
-            	   } ## ！！！ exec httpGet tcpSocket 三项只能选其中一项
-            },
-			"resources": {
-                "cpu": string, # 可选 cpu资源配额 单位m 1000m等价于1核cpu
-                "gpu": int, # 可选 gpu资源配额
-                "memory": string, # 可选 内存资源配额 单位Mi,Gi
-                "volumes": [{
-                	"name": string, # (必选)
-                	"mountPath": string, # (必选)
-                	"accessMode": string, # 可选
-                	"sharingPolicy": string, # 可选，
-                	"disk": {
-                		"required": string, #（如果ephemeral 为false 会给容器创建hostpath挂载卷 则此项必选 需要填写物理机上对应挂载目录）
-                		"ephemeral": bool # 是否需要持久化卷 false 对应创建hostpath true 对应创建emptydir 
-            		} # 这个数据结构对应容器挂载本地卷 
-            	}] # 可选
-            }, # 可选
-			securityContext: {
-                "RunAsNonRoot": bool # TODO
-            } # 可选 容器权限配置 TODO
-        }], #可选 容器配置（平台托管必选 非平台托管此配置为空）
-	    "devTraits": {
-            "imagePullConfig": {
-                "registry": string, # （必选）
-                "username": string, # (必选)
-                "password": string # (必选)
-            }, # 可选 配置镜像库config
-            "ingressLB": {
-            	consistentType: string, #可选 目前仅支持配置 "sourceIP"
-            	lbType: string #可选 目前只支持rr(轮询);leastConn(根据最小连接数);random(随机) 3种策略选择一种
-        	}， # 可选 consistentType与lbType 为互斥关系，只能配置一种
-			"staticIP": bool # 可选 配置容器是否需要保持IP
-        }, # 开发人员配置
-		"optTraits": {
-            "terminationGracePeriodSeconds": int, # 可选项 配置容器内进程完全退出所需处理时间。
-            "schedulePolicy": {
-            	"nodeSelector": map[string]string, #根据一定的标签调度Pod到指定node
+			"name": "string",
+			"description": "string",
+			"type": "string",
+			"required": bool,
+			"default": "string"
+		}], // 可选
+		"containers": [{
+				"name": "string", // 必选 容器名
+				"command": "[]string"， //可选 命令
+				"args": "[]string", //可选 参数
+				"config": [{
+					"path": "string", //(必选）挂载到容器内路径
+					"fileName": "string" //（必选）挂载到容器内的文件名
+					"value": "string" //（必选）文件内容
+				}], //可选 通过该项为容器创建configmap资源并挂载 
+				"env": [{
+					"fromParam": "string", //可选 见示例2 目前只支持(spec.nodeName 对应所在主机名 metadata.name 获取容器名 metadata.namespace获取所在namespace status.podIP获取容器ip)
+					"name": "string", //必选
+					"value": "string" //（必选）说明 如果fromparam不为空 value不需要再填 
+				}], //可选 用于配置环境变量
+				"image": "string", // 必选项
+				"imagePullPolicy": "string", // 可选项 镜像拉取策略 默认为Always 可填字段仅限于Always，IfNotPresent，Never。
+				"livenessProbe": {
+					"exec": {
+						"command": “[] string ", // 可选项 在容器内执行指定命令。如果命令退出时返回码为 0 则表明容器健康
+					},
+					"httpGet": {
+						"port": "int", // (必选)
+						"path": "string", // (必选)
+						"httpHeaders": [{
+							"name": "string", // (必选)
+							"value": "string" // (必选)
+						}] // 可选 配置请求头
+					}, // 可选 通过httpGet判断容器内服务健康状态
+					"tcpSocket": {
+						"port": "int"， // 可选 配置监听容器内端口健康状态
+					}, // ！！！ exec httpGet tcpSocket 三项只能选其中一项
+					"initialDelaySeconds": "int"， // 容器启动和探针启动之间的秒数
+					"periodSeconds": "int", //检查的频率（以秒为单位）。默认为10秒。最小值为1。
+					"timeoutSeconds": "int" // 配置检查超时时间
+					"successThreshold": "int" // 查成功的最小连续成功次数。默认为1.活跃度必须为1。最小值为1
+					"failureThreshold": "int" // 当Pod成功启动且检查失败时，Kubernetes将在放弃之前尝试failureThreshold次。放弃生存检查意味着重新启动Pod。而放弃就绪检查，Pod将被标记为未就绪。默认为3.最小值为1。
+				}, // 可选项 判断容器是否存活策略配置 见示例3
+				"ports": [{
+					"containerPort": "int", //可选 容器内服务监听端口
+					"name": "string", //可选
+					"protocol": "string" //可选
+				}], // 可选
+				"readinessProbe": {
+					//内容于livenessProbe一致
+				}, // 可选项 用于判断容器服务状态如果异常则从service endpoint列表移除
+				"lifecycle": {
+					"postStart": {
+						// 同Prestop相同 目前不需要
+					},
+					"preStop": {
+						"exec": {
+							"command": "[]string", // 可选项 在容器内执行指定命令或脚本，做容器退出前的清理工作。
+						},
+						"httpGet": {
+							"port": "int", // (必选)
+							"path": "string", // (必选)
+							"httpHeaders": [{
+								"name": "string", // (必选)
+								"value": "string" // (必选)
+							}] // 可选 配置请求头
+						}, // 可选 通过httpGet判断容器内服务健康状态
+						"tcpSocket": {
+							"port": "int"， // 可选 配置监听容器内端口健康状态
+						} //// ！！！ exec httpGet tcpSocket 三项只能选其中一项
+					}
+				},
+				"resources": {
+					"cpu": "string", // 可选 cpu资源配额 单位m 1000m等价于1核cpu
+					"gpu": "int", // 可选 gpu资源配额
+					"memory": "string" // 可选 内存资源配额 单位Mi,Gi
+					"volumes": [{
+						"name": "string", // (必选)
+						"mountPath": "string", // (必选)
+						"accessMode": "string", // 可选
+						"sharingPolicy": "string", // 可选，
+						"disk": {
+							"required": "string", //（如果ephemeral 为false 会给容器创建hostpath挂载卷 则此项必选 需要填写物理机上对应挂载目录）
+							"ephemeral": "bool" // 是否需要持久化卷 false 对应创建hostpath true 对应创建emptydir 
+						} // 这个数据结构对应容器挂载本地卷 
+					}] // 可选
+				}, // 可选
+				"securityContext": {
+					"RunAsNonRoot": bool // TODO
+				}, // 可选 容器权限配置 TODO
+			} // (必选) 容器配置
+		], //可选  (平台托管必选 非平台托管此配置为空）
+		"componentTraits": {
+			"replicas": "int",
+			"custommetric": {
+				"enable": "bool", // 服务是否上报自定义指标
+				"uri": "string" // 服务指标查询接口 示例/jaminfo 如果enable 为true 则需要填写uri
+			}, // 自定义指标配置
+			"logcollect": "bool", //是否采集规定目录用户自定义日志
+			"terminationGracePeriodSeconds": "int", // 可选项 配置容器内进程完全退出所需处理时间
+			"schedulePolicy": {
+				"nodeSelector": "map[string]string", //根据一定的标签调度Pod到指定node
 				"nodeAffinity": {
-                    "hardAffinity": bool, # 硬限制（true） or 软限制(false)
-                    "labelSelectorRequirement":{
-                    	"key": string, # key (必选)
-                        "operator": string, # 操作符（必选） In：label 的值在某个列表中 NotIn：label 的值不在某个列表中 Exists：某个 label 存在 DoesNotExist：某个 label 不存在（只能填这四种操作符 如果操作符为Exists或DoesNotExist 则不需用填写values）
-                    	"values": []string # （可选）
-                	}
-                }, # Node亲和性规则（可选）
+					"hardAffinity": "bool", // 硬限制（true） or 软限制(false)
+					"labelSelectorRequirement": {
+						"key": "string", // key (必选)
+						"operator": "string", // 操作符（必选） In：label 的值在某个列表中 NotIn：label 的值不在某个列表中 Exists：某个 label 存在 DoesNotExist：某个 label 不存在（只能填这四种操作符 如果操作符为Exists或DoesNotExist 则不需用填写values）
+						"values": "[]string" // （可选）
+					}
+				}, // Node亲和性规则（可选）
 				"podAffinity": {
-                    "hardAffinity": bool, # 硬限制（true） or 软限制(false)
-                 	"labelSelectorRequirement":{
-                    	"key": string, # key (必选)
-                        "operator": string, # 操作符（必选） In：label 的值在某个列表中 NotIn：label 的值不在某个列表中 Exists：某个 label 存在 DoesNotExist：某个 label 不存在（只能填这四种操作符 如果操作符为Exists或DoesNotExist 则不需用填写values）
-                    	"values": []string # （可选）
-                	}
-                }, # Pod亲和性规则
+					"hardAffinity": "bool", // 硬限制（true） or 软限制(false)
+					"labelSelectorRequirement": {
+						"key": "string", // key (必选)
+						"operator": "string", // 操作符（必选） In：label 的值在某个列表中 NotIn：label 的值不在某个列表中 Exists：某个 label 存在 DoesNotExist：某个 label 不存在（只能填这四种操作符 如果操作符为Exists或DoesNotExist 则不需用填写values）
+						"values": "[]string" // （可选）
+					}
+				}, // Pod亲和性规则
 				"podAntiAffinity": {
-                    "hardAffinity": bool, # 硬限制（true） or 软限制(false)
-                 	"labelSelectorRequirement":{
-                    	"key": string, # key (必选)
-                        "operator": string, # 操作符（必选） In：label 的值在某个列表中 NotIn：label 的值不在某个列表中 Exists：某个 label 存在 DoesNotExist：某个 label 不存在（只能填这四种操作符 如果操作符为Exists或DoesNotExist 则不需用填写values）
-                    	"values": []string # （可选）
-                	}
-                }, # Pod反亲和性规则
-        	}, # 容器调度策略（可选）
-            "httpretry": {
-              	"attempts": int # 重试次数，
-                "pertrytimeout": string # 重试时间间隔 示例3s
-            }, # 请求重试配置
-            "custommetric": {
-                "enable": bool # 服务是否上报自定义指标
-                "uri": string # 服务指标查询接口 示例/jaminfo 如果enable 为true 则需要填写uri
-            } # 自定义指标配置
-            "autoscaling": {
-                "metric": string # 伸缩容依赖的指标
-                "threshold": int64 # 阈值
-                "maxreplicas": int # 最大扩容副本数
-                "minreplicas": int # 最小缩容副本数
-            }, # 自动扩缩配置
-            "ingress": {
-                "host": string, # (必选) 访问入口域名
-                "path": []string, # 可选	访问路径 默认为 //TODO
-                "serverPort": int #(必选) 服务端口
-            }, # 必选 对外提供访问配置 ！！校验
-            "manualScaler": {
-            	"replicas": int # 必选 副本数
-       	 	}, # 可选 配置副本数 默认1
- 			"volumeMounter": {
-                "volumeName": string， # TODO
-                "storageClass": string
-            },# TODO
-            "eject": []string, #TODO
-			"fusing": {
-              	"podlist": []string, podname列表
-                "action": string # in/out
-            }, # 熔断 (可选)
-            "rateLimit": {
-                "timeDuration": string,  #(必选)
-                "requestAmount": int # (必选),
-                "overrides": [{
-                	"user": string,  #(必选)
-                    "requestAmount": int, # (必选)
-                }], # 可选
-            }, # 可选
-            "circuitbreaking": {
-              	"loadBalancer": {
-                  	"simple": string, ## "ROUND_ROBIN" or "LEAST_CONN" or "RANDOM"
-                    "consistentHash": {
-                  	     "httpHeaderName": string, #根据请求头HASH
-                         "useSourceIp": bool, # 根据来源IP HASH
-                         "minimumRingSize": uint64 
-                	}, 
-                }, # 负载均衡策略
-                "connectionPool": {
-                  	"tcp": {
-                       "maxConnections": int32, #最大TCP连接数（必选）
-                       "connectTimeout": string, # 超时时间（可选）
-                    },
-                    "http": {
-                        "http1MaxPendingRequests": int32, #最大允许HTTP1等待连接数
-                        "http2MaxRequests": int32, # 最大允许HTTP2请求数
-                        "maxRequestsPerConnection": int32, # 最大允许HTTP2每个请求中的连接数
-                        "maxRetries": int32, # 最大重试次数
-                    },
-                }, # 服务配置连接的数量
-				"outlierDetection": {
-                    "consecutiveErrors": int32, # 错误连接数阈值
-                    "interval": string, # 检查时间间隔
-                    "baseEjectionTime": string, # 拒绝访问时间
-                    "maxEjectionPercent":int32 # 拒绝流量百分比
-                }, # 断路器配置
-            },
-			"whiteList": {
-                "users": []string
-            } # 可选 服务访问者白名单
-        }# 必选 运维人员配置
-	}], ## 组件列表 必选
-	"ownerReference": [{
-        "apiVersion": string,
-        "kind": string,
-        "name": string,
-        "controller": bool,
-        "uid": string,
-       	"blockOwnerDeletion": string
-    }] ## 用于查询
+					"hardAffinity": "bool", // 硬限制（true） or 软限制(false)
+					"labelSelectorRequirement": {
+						"key": "string", // key (必选)
+						"operator": "string", // 操作符（必选） In：label 的值在某个列表中 NotIn：label 的值不在某个列表中 Exists：某个 label 存在 DoesNotExist：某个 label 不存在（只能填这四种操作符 如果操作符为Exists或DoesNotExist 则不需用填写values）
+						"values": "[]string" // （可选）
+					}
+				}, // Pod反亲和性规则
+			}, // 容器调度策略(可选)
+			"autoscaling": {
+				"metric": "string", // 伸缩容依赖的指标
+				"threshold": "float64", // 阈值
+				"maxreplicas": "int", // 最大扩容副本数
+				"minreplicas": "int" // 最小缩容副本数
+			} // 自动扩缩配置
+		}
+	}], // 组件列表 必选
+	"optTraits": {
+		"imagePullConfig": {        
+			"registry": "string", //（必选）
+			        "username": "string", // (必选)
+			        "password": "string" // (必选)
+			     
+		}, // 可选 配置镜像库config 暂时不需要开发相关功能
+		"httpretry": {
+			"attempts": "int" // 重试次数，
+			"pertrytimeout": "string" // 重试时间间隔 示例3s
+		}, // 请求重试配置
+		"ingress": {
+			"host": "string", // (必选) 访问入口域名
+			"path": "[]string", // 可选	访问路径 默认为 ["/"]
+			"serverPort": "int" //(必选) 服务端口
+		}, // 必选 对外提供访问配置 ！！校验
+		"eject": "[]string", // 保留字段 暂未开发相关功能
+		"fusing": {
+			"podlist": "[]string", // podname列表
+			"action": "string" // in 或 out
+		}, // 可选 手动熔断配置
+		"rateLimit": {
+			"timeDuration": "string", //(必选)
+			"requestAmount": "int" // (必选),
+			"overrides": [{
+				"user": "string", //(必选)
+				"requestAmount": "int", // (必选)
+			}], // 可选覆盖默认参数
+		}, // 可选 限流配置
+		"loadBalancer": {
+			"simple": "string", //负载均衡策略 "ROUND_ROBIN" or "LEAST_CONN" or "RANDOM"
+			"consistentHash": {
+				"useSourceIp": "bool" // 根据请求源IP绑定
+			},
+		}, // 负载均衡策略
+		"grayRelease": "map[string]int", //灰度发布
+		"circuitbreaking": {
+			"connectionPool": {
+				"tcp": {
+					"maxConnections": "int", //最大TCP连接数（必选）
+					"connectTimeout": "string", // 超时时间（可选）
+				},
+				"http": {
+					"http1MaxPendingRequests": "int", //最大允许HTTP1等待连接数
+					"http2MaxRequests": "int", // 最大允许HTTP2请求数
+					"maxRequestsPerConnection": "int", // 最大允许HTTP2每个请求中的连接数
+					"maxRetries": "int", // 最大重试次数
+				},
+			}, // 服务配置连接池
+			"outlierDetection": {
+				"consecutiveErrors": "int", // 错误连接数阈值
+				"interval": "string", // 检查时间间隔
+				"baseEjectionTime": "string", // 拒绝访问时间
+				"maxEjectionPercent": "int" // 拒绝流量百分比
+			}
+		} // 可选 自动熔断配置
+		"whiteList": {
+			"users": "[]string"
+		} // 可选 服务访问者白名单
+	}, // 必选 运维人员配置
 	"status": {
-        map[string]{
-            "componentId": string,
-            "workload": string,
-            "service": string,
-            "configMaps": []string,
-            "imagePullSecret": string,
-            "gateway": string,
-            "policy": string,
-            "clusterRbacConfig": string,
-            "virtualService": string,
-            "serviceRole": string,
-            "serviceRoleBinding": string,
-            "DestinationRule":string
-        }
-    } ## 用于查询
+		"map[string]object{
+		"componentId": "string",
+		"workload": "string",
+		"service": "string",
+		"configMaps": "[]string",
+		"imagePullSecret": "string",
+		"gateway": "string",
+		"policy": "string",
+		"clusterRbacConfig": "string",
+		"virtualService": "string",
+		"serviceRole": "string",
+		"serviceRoleBinding": "string",
+		"DestinationRule": "string"
+	} //保留字段
 }
 
 ---
