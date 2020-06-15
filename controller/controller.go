@@ -151,13 +151,8 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 	var trusted bool = false
 
 	components := app.Spec.Components
-	if len(components) == 0 {
+	if len(components) == 0 && len(app.Status.ComponentResource) == 0 {
 		return nil, nil
-	}
-
-	//if containers is nil, the app is trusted, this controller does not manage its workload's lifecycle
-	if len(components[0].Containers) == 0 {
-		trusted = true
 	}
 	//zk
 	var oldcomresource map[string]v3.ComponentResources = make(map[string]v3.ComponentResources)
@@ -176,6 +171,10 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 	}*/ //Not needed for the time being
 	var deletelist []string
 	for _, component := range components {
+		//if containers is nil, the app is trusted, this controller does not manage its workload's lifecycle
+		if len(components[0].Containers) == 0 {
+			trusted = true
+		}
 		delete(oldcomresource, (app.Name + "_" + component.Name + "_" + component.Version))
 		ownerRefOfDeploy := new(metav1.OwnerReference)
 		if trusted == false {
@@ -209,6 +208,7 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 	c.syncService(app)
 	c.syncAuthor(app)
 	c.syncPolicy(app)
+	log.Debugf("These versions need to be removed %v", oldcomresource)
 	for k := range oldcomresource {
 		deletelist = append(deletelist, k)
 	}
@@ -424,7 +424,9 @@ func (c *controller) syncDeployment(component *v3.Component, app *v3.Application
 		}
 	}
 	log.Infof("Sync deploy for %s done!", app.Namespace+":"+app.Name+":"+component.Name)
-
+	app.Status.ComponentResource[(app.Name + "_" + component.Name + "_" + component.Version)] = v3.ComponentResources{
+		Workload: object.Name,
+	}
 	return nil
 }
 
