@@ -172,12 +172,12 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 	var deletelist []string
 	for _, component := range components {
 		//if containers is nil, the app is trusted, this controller does not manage its workload's lifecycle
-		if len(components[0].Containers) == 0 {
+		if len(component.Containers) == 0 {
 			trusted = true
 		}
-		delete(oldcomresource, (app.Name + "_" + component.Name + "_" + component.Version))
 		ownerRefOfDeploy := new(metav1.OwnerReference)
 		if trusted == false {
+			delete(oldcomresource, (app.Name + "_" + component.Name + "_" + component.Version))
 			c.syncConfigmaps(&component, app)
 			err := c.syncWorkload(&component, app, ownerRefOfDeploy)
 			if err != nil {
