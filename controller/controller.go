@@ -555,7 +555,7 @@ func (c *controller) syncAuthor(app *v3.Application) error {
 					}
 					return nil
 				}
-				//object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
+				object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
 				_, err = c.serviceRoleBindingClient.Update(&object)
 				if err != nil {
 					log.Errorf("Update servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
