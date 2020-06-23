@@ -112,6 +112,22 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				}}})
 		}
 	}
+	if component.ComponentTraits.Logcollect && os.Getenv("LOGCOLLECT_CONFIGMAP_NAME") != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name:         component.Name + "-" + "logdir",
+			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		})
+		volumes = append(volumes, corev1.Volume{
+			Name: component.Name + "-" + "log" + "-" + "configmap",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: os.Getenv("LOGCOLLECT_CONFIGMAP_NAME"),
+					},
+				},
+			},
+		})
+	}
 	containers, _ := getContainers(component)
 	var imagepullsecret []corev1.LocalObjectReference
 	/*if app.Status.ComponentResource[(app.Name+"_"+component.Name+"_"+component.Version)].ImagePullSecret != "" {
@@ -200,22 +216,6 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 			if component.ComponentTraits.SchedulePolicy.PodAffinity.HardAffinity {
 				deploy.Spec.Template.Spec.Affinity.PodAffinity = new(corev1.PodAffinity)
-				deploy.Spec.Template.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
-					{
-						TopologyKey: "kubernetes.io/hostname",
-						LabelSelector: &metav1.LabelSelector{
-							MatchExpressions: []metav1.LabelSelectorRequirement{
-								{
-									Key:      component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
-									Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
-									Values:   component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
-								},
-							},
-						},
-					},
-				}
-			} else {
-				deploy.Spec.Template.Spec.Affinity.PodAffinity = new(corev1.PodAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
 					{
 						Weight: int32(1),
@@ -224,9 +224,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									{
-										Key:      component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Key,
-										Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Operator),
-										Values:   component.ComponentTraits.SchedulePolicy.PodAffinity.CLabelSelectorRequirement.Values,
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{app.Name + "-" + "workload"},
 									},
 								},
 							},
@@ -242,22 +242,6 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 			if component.ComponentTraits.SchedulePolicy.PodAntiAffinity.HardAffinity {
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity = new(corev1.PodAntiAffinity)
-				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []corev1.PodAffinityTerm{
-					{
-						TopologyKey: "kubernetes.io/hostname",
-						LabelSelector: &metav1.LabelSelector{
-							MatchExpressions: []metav1.LabelSelectorRequirement{
-								{
-									Key:      component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
-									Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
-									Values:   component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
-								},
-							},
-						},
-					},
-				}
-			} else {
-				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity = new(corev1.PodAntiAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
 					{
 						Weight: int32(1),
@@ -266,9 +250,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 							LabelSelector: &metav1.LabelSelector{
 								MatchExpressions: []metav1.LabelSelectorRequirement{
 									{
-										Key:      component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Key,
-										Operator: metav1.LabelSelectorOperator(component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Operator),
-										Values:   component.ComponentTraits.SchedulePolicy.PodAntiAffinity.CLabelSelectorRequirement.Values,
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{app.Name + "-" + "workload"},
 									},
 								},
 							},
@@ -349,10 +333,18 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 		}
 		containers = append(containers, container)
 		if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
+			resources := map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("50Mi"),
+			}
 			containers = append(containers, corev1.Container{
 				Name:            "transter-proxy",
 				Image:           os.Getenv("PROXYIMAGE"),
 				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources: corev1.ResourceRequirements{
+					Limits:   resources,
+					Requests: resources,
+				},
 				Env: []corev1.EnvVar{
 					{
 						Name: "POD_NAME",
@@ -383,6 +375,37 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 						Value: component.ComponentTraits.CustomMetric.Uri,
 					},
 				},
+			})
+		}
+
+		if component.ComponentTraits.Logcollect && os.Getenv("LOGCOLLECT_CONFIGMAP_NAME") != "" {
+			volumes = append(volumes, corev1.VolumeMount{
+				Name:      component.Name + "-" + "logdir",
+				MountPath: "/log",
+			})
+			volumes = append(volumes, corev1.VolumeMount{
+				Name:      component.Name + "-" + "log" + "-" + "configmap",
+				MountPath: "/fluentd/etc/",
+			})
+			resources := map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("200Mi"),
+			}
+			containers = append(containers, corev1.Container{
+				Name:            "custom_log_collect",
+				Image:           os.Getenv("LOGIMAGE"),
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Env: []corev1.EnvVar{
+					{
+						Name:  "FLUENTD_ARGS",
+						Value: "--no-supervisor -q",
+					},
+				},
+				Resources: corev1.ResourceRequirements{
+					Limits:   resources,
+					Requests: resources,
+				},
+				VolumeMounts: volumes,
 			})
 		}
 		/*if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
