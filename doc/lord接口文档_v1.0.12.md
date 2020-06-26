@@ -6,12 +6,17 @@
 - clusters
 - projects
 - namespace
+- configmap
+  - 创建configmap
+  - 更新configmap
+  - 删除configmap
 - workloads
   - 获取workload
   - 查询workload负载
 - pods
   - 获取pod
   - 查询pod负载
+  - 删除pod
 - applicationConfigurationTemplate
 - application
   - 对接开发功能
@@ -318,6 +323,152 @@ https://10.10.111.54:444/v3-public/localProviders/local?action=login
     "uuid": "6684967d-1827-11ea-96e2-fa163ecee4c9,
     ...
 }
+```
+
+# ConfigMap
+
+## 创建configmap
+
+### 接口
+
+```
+/v3/projects/${projectid}/configmap
+```
+
+### headers
+
+| key           | value                                                        |
+| ------------- | ------------------------------------------------------------ |
+| content-type  | application/json                                             |
+| Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh6bjx9whsd |
+
+### verb
+
+```json
+"Methods": [
+        "POST"
+  ]
+```
+
+### payload
+
+```json
+{
+	"type": "configMap", //固定参数 
+	"data": "map[string]string", // key:value 
+	"name": "string", // configmap name
+	"namespaceId": "string" //namespace name
+}
+
+示例
+{
+    "type":"configMap",
+    "data":{
+        "test":"test"
+    },
+    "name":"test",
+    "namespaceId":"service"
+}
+```
+
+### response
+
+```json
+{
+    "annotations":{
+    },
+    "baseType":"configMap",
+    "data":{
+        "test":"test"
+    },
+    "id":"service:test",
+    "labels":{
+        "cattle.io/creator":"norman"
+    },
+	...
+    "name":"test",
+    "namespaceId":"service",
+    "projectId":"local:p-rnqx6",
+    "type":"configMap",
+	...
+}
+```
+
+## 更新configmap
+
+### 接口
+
+```
+/v3/project/${projectid}/configMaps/${namespace}:${configmapname}
+```
+
+### headers
+
+| key           | value                                                        |
+| ------------- | ------------------------------------------------------------ |
+| content-type  | application/json                                             |
+| Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh6bjx9whsd |
+
+### verb
+
+```json
+"Methods": [
+        "PUT"
+  ]
+```
+
+### payload
+
+```json
+{
+	"data": "map[string]string" // key:value 
+}
+```
+
+### response
+
+```json
+{
+    "annotations":{
+    },
+    "baseType":"configMap",
+    "data":{
+        "test":"test"
+    },
+    "id":"service:test",
+    "labels":{
+        "cattle.io/creator":"norman"
+    },
+	...
+    "name":"test",
+    "namespaceId":"service",
+    "projectId":"local:p-rnqx6",
+    "type":"configMap",
+	...
+}
+```
+
+## 删除configmap
+
+### 接口
+
+```
+/v3/project/${projectid}/configMaps/${namespace}:${configmapname}
+```
+
+### headers
+
+| key           | value                                                        |
+| ------------- | ------------------------------------------------------------ |
+| content-type  | application/json                                             |
+| Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh6bjx9whsd |
+
+### verb
+
+```json
+"Methods": [
+        "DELETE"
+  ]
 ```
 
 # Workloads
@@ -875,6 +1026,24 @@ https://10.10.111.54:444/v3-public/localProviders/local?action=login
 }
 ```
 
+## 删除pod
+
+### 接口
+
+```
+/v3/project/${projectid}/pods/${namespace}:${podname}
+```
+
+### verb
+
+```
+"Methods": [
+        "DELETE"
+  ]
+```
+
+
+
 ## 查询Pod负载
 
 ### 接口
@@ -1054,313 +1223,6 @@ https://10.10.111.54:444/v3-public/localProviders/local?action=login
 }
 ```
 
-
-
-# applicationConfigurationTemplate
-
-## 接口
-
-```
-/v3/applicationConfigurationTemplate
-```
-
-## verb
-
-```
-"Methods": [
-        "GET",
-        "POST",
-        "DELETE"
-  ]
-```
-
-## headers
-
-| key           | value                                                        |
-| ------------- | ------------------------------------------------------------ |
-| content-type  | application/json                                             |
-| Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh6bjx9whsd |
-
-## 样例
-
-### GET
-
-#### url
-
-```
-/v3/applicationConfigurationTemplate
-```
-
-#### verb
-
-```
-"Methods": [
-        "GET"
-  ]
-```
-
-#### headers
-
-| key           | value                                                        |
-| ------------- | ------------------------------------------------------------ |
-| content-type  | application/json                                             |
-| Authorization | Bearer token-5tgq4:xnq57jc7vgmjlcwzhtl8qdfbftt7tns7jf4bk6p4tstrh6bjx9whsd |
-
-#### response
-
-```json
-{
-    "type": "collection",
-    "links": {
-        "self": "https://10.10.111.54:444/v3/applicationConfigurationTemplate"
-    },
-    "createTypes": {
-        "applicationConfigurationTemplate": "https://10.10.111.54:444/v3/applicationconfigurationtemplates"
-    },
-    "actions": {},
-    "pagination": {
-        "limit": 1000,
-        "total": 50
-    },
-    "sort": {
-        "order": "asc",
-        "reverse": "https://10.10.111.54:444/v3/applicationConfigurationTemplate?order=desc",
-        "links": {
-            "state": "https://10.10.111.54:444/v3/applicationConfigurationTemplate?sort=state",
-            "transitioning": "https://10.10.111.54:444/v3/applicationConfigurationTemplate?sort=transitioning",
-            "transitioningMessage": "https://10.10.111.54:444/v3/applicationConfigurationTemplate?sort=transitioningMessage",
-            "uuid": "https://10.10.111.54:444/v3/applicationConfigurationTemplate?sort=uuid"
-        }
-    },
-    "filters": {
-        "created": null,
-        "creatorId": null,
-        "name": null,
-        "removed": null,
-        "state": null,
-        "transitioning": null,
-        "transitioningMessage": null,
-        "uuid": null
-    },
-    "resourceType": "applicationConfigurationTemplate",
-    "data": [
-        {
-            "baseType": "applicationConfigurationTemplate",
-            "components": [
-                {
-                    "containers": [
-                        {
-                            "args": null,
-                            "command": null,
-                            "config": null,
-                            "env": null,
-                            "image": "aa",
-                            "imagePullPolicy": "IfNotPresent",
-                            "imagePullSecret": "",
-                            "livenessProbe": null,
-                            "name": "aa",
-                            "ports": [
-                                {
-                                    "containerPort": 0,
-                                    "name": "",
-                                    "protocol": "",
-                                    "type": "/v3/schemas/appPort"
-                                }
-                            ],
-                            "readinessProbe": null,
-                            "resources": null,
-                            "securityContext": null,
-                            "type": "/v3/schemas/componentContainer"
-                        }
-                    ],
-                    "devTraits": {
-                        "imagePullConfig": null,
-                        "ingressLB": {
-                            "consistentType": "sourceIP",
-                            "lbType": "",
-                            "type": "/v3/schemas/ingressLB"
-                        },
-                        "staticIP": false,
-                        "type": "/v3/schemas/componentTraitsForDev"
-                    },
-                    "name": "aa",
-                    "optTraits": {
-                        "ingress": {
-                            "host": "aa",
-                            "path": "aa",
-                            "serverPort": 0,
-                            "type": "/v3/schemas/appIngress"
-                        },
-                        "manualScaler": {
-                            "replicas": 0,
-                            "type": "/v3/schemas/manualScaler"
-                        },
-                        "type": "/v3/schemas/componentTraitsForOpt",
-                        "volumeMounter": null,
-                        "whiteList": {
-                            "type": "/v3/schemas/whiteList",
-                            "users": [
-                                "aa"
-                            ]
-                        }
-                    },
-                    "parameters": null,
-                    "type": "/v3/schemas/component",
-                    "workloadType": "Server"
-                }
-            ],
-            "created": "2019-12-07T14:32:54Z",
-            "id": "aa",
-            "links": {
-                "remove": "https://10.10.111.54:444/v3/applicationConfigurationTemplates/aa",
-                "self": "https://10.10.111.54:444/v3/applicationConfigurationTemplates/aa",
-                "update": "https://10.10.111.54:444/v3/applicationConfigurationTemplates/aa"
-            },
-            "name": "aa",
-            "state": "active",
-            "transitioning": "no",
-            "transitioningMessage": "",
-            "type": "applicationConfigurationTemplate",
-            "uuid": "74551ae2-18fe-11ea-803b-0242ac110003"
-        },
-        ...
-    ]
-}
-```
-
-
-
-### Create
-
-#### url
-
-```
-/v3/applicationConfigurationTemplate?_replace=true
-```
-
-#### verb
-
-```
-"Methods": [
-        "POST"
-  ]
-```
-
-#### body
-
-```json
-{
-	"components": [{
-		"serverName": "Application",
-		"workloadType": "Server",
-		"containers": [{
-		    "name": "test",
-		    "image": "nginx:latest"
-		}]
-	}],
-	"labels": {},
-	"name": "applicationtemplate-test"
-}
-```
-
-#### response
-
-```json
-{
-    "annotations": {},
-    "baseType": "applicationConfigurationTemplate",
-    "components": [
-        {
-            "containers": [
-                {
-                    "image": "nginx:latest",
-                    "name": "test",
-                    "type": "/v3/schemas/container"
-                }
-            ],
-            "type": "/v3/schemas/component",
-            "workloadType": "Server"
-        }
-    ],
-    "created": "2019-11-27T07:53:17Z",
-    "createdTS": 1574841197000,
-    "creatorId": "user-5js2x",
-    "id": "applicationtemplate-test",
-    "labels": {
-        "cattle.io/creator": "norman"
-    },
-    "links": {
-        "remove": "https://10.10.111.54:444/v3/applicationConfigurationTemplates/applicationtemplate-test",
-        "self": "https://10.10.111.54:444/v3/applicationConfigurationTemplates/applicationtemplate-test",
-        "update": "https://10.10.111.54:444/v3/applicationConfigurationTemplates/applicationtemplate-test"
-    },
-    "name": "applicationtemplate-test",
-    "state": "active",
-    "transitioning": "no",
-    "transitioningMessage": "",
-    "type": "applicationConfigurationTemplate",
-    "uuid": "f93681f2-10ea-11ea-9e36-0242ac110003"
-}
-```
-
-### Update
-
-#### url
-
-```
-/v3/applicationConfigurationTemplates/${applicationname}
-```
-
-#### verb
-
-```
-"Methods": [
-        "POST"
-  ]
-```
-
-#### 
-
-#### payload
-
-```json
-{
-	"components": [{
-		"name": "TEST",
-		"workloadType": "Server",
-		"containers": [{
-			"name": "test1204",
-			"image": "busybox:1.28.3"
-		}]
-	}],
-	"labels": {},
-	"name": "test-application",
-	"namespaceId": "istio-test"
-}
-```
-
-
-
-### Delete
-
-#### url
-
-```
-/v3/applicationConfigurationTemplates/${applicationname}
-```
-
-#### headers
-
-见上
-
-#### verb
-
-```
-"Methods": [
-        "DELETE"
-  ]
-```
-
 # Application
 
 ## 对接开发功能
@@ -1379,7 +1241,7 @@ https://10.10.111.54:444/v3-public/localProviders/local?action=login
       - 容器自定义退出时间（**components.[].componentTraits.terminationGracePeriodSeconds** ~~components.[].optTraits.terminationGracePeriodSeconds~~）
       - 容器调度策略（**components.[].componentTraits.schedulePolicy**  ~~components.[].optTraits.schedulePolicy~~）√ 
       - 容器自定义metric配置（**components.[].componentTraits.custommetric**）√ 
-      - 容器自定义日志采集配置(**components.[].componentTraits.logcollect**) x
+      - 容器自定义日志采集配置(**components.[].componentTraits.logcollect**) √ 
 2. 服务治理配置
    - 负载均衡策略（**optTraits.loadBalancer**  ~~components.[].devTraits.ingressLB~~）√ 
    - 路由规则配置 （**optTraits.ingress** ~~components.[].optTraits.ingress~~）√

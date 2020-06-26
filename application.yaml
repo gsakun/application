@@ -1,0 +1,57 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    name: application
+  name: application
+  namespace: application
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: application
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: application
+    spec:
+      containers:
+      - env:
+        - name: REDIS_SERVER
+          value: redis.rate-redis.svc.cluster.local:6379
+        - name: AUTHN_ENDPOINT
+          value: http://10.10.111.45:32305
+        - name: AUTHN_REALM
+          value: service
+        - name: LOG_LEVEL
+          value: info
+        - name: ADMIN_IMAGEPULL_SECRET_NAME
+          value: yg
+        - name: PROXYIMAGE
+          value: socp.io/zk/prometheus-transfer:20200414
+        - name: LOGCOLLECT_CONFIGMAP_NAME
+          value: fluentd-config
+        - name: LOGIMAGE
+          value: socp.io/library/fluentd-kubernetes-daemonset:v1.11-debian-kafka-2
+        image: gsakun/application:20200626
+        imagePullPolicy: IfNotPresent
+        name: application
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: application
+      serviceAccountName: application
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
