@@ -174,6 +174,10 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy, v3.SchedulePolicy{}) {
 		if component.ComponentTraits.SchedulePolicy.NodeSelector != nil {
 			deploy.Spec.Template.Spec.NodeSelector = component.ComponentTraits.SchedulePolicy.NodeSelector
+			deploy.Spec.Template.Spec.NodeSelector["user"] = "SP"
+		} else {
+			deploy.Spec.Template.Spec.NodeSelector = make(map[string]string)
+			deploy.Spec.Template.Spec.NodeSelector["user"] = "SP"
 		}
 		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
 			deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
@@ -211,7 +215,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 		}
 		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAffinity, v3.CPodAffinity{}) {
-			if deploy.Spec.Template.Spec.Affinity != nil {
+			if deploy.Spec.Template.Spec.Affinity == nil {
 				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			}
 			if component.ComponentTraits.SchedulePolicy.PodAffinity.HardAffinity {
@@ -237,7 +241,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		}
 
 		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAntiAffinity, v3.CPodAntiAffinity{}) {
-			if deploy.Spec.Template.Spec.Affinity != nil {
+			if deploy.Spec.Template.Spec.Affinity == nil {
 				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			}
 			if component.ComponentTraits.SchedulePolicy.PodAntiAffinity.HardAffinity {
@@ -379,11 +383,11 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 		}
 
 		if component.ComponentTraits.Logcollect && os.Getenv("LOGCOLLECT_CONFIGMAP_NAME") != "" {
-			volumes = append(volumes, corev1.VolumeMount{
+			var logvolumes []corev1.VolumeMount
+			logvolumes = append(logvolumes, corev1.VolumeMount{
 				Name:      component.Name + "-" + "logdir",
 				MountPath: "/log",
-			})
-			volumes = append(volumes, corev1.VolumeMount{
+			}, corev1.VolumeMount{
 				Name:      component.Name + "-" + "log" + "-" + "configmap",
 				MountPath: "/fluentd/etc/",
 			})
@@ -392,7 +396,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 				corev1.ResourceMemory: resource.MustParse("200Mi"),
 			}
 			containers = append(containers, corev1.Container{
-				Name:            "custom_log_collect",
+				Name:            "custom-log-collect",
 				Image:           os.Getenv("LOGIMAGE"),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Env: []corev1.EnvVar{
@@ -405,46 +409,9 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 					Limits:   resources,
 					Requests: resources,
 				},
-				VolumeMounts: volumes,
+				VolumeMounts: logvolumes,
 			})
 		}
-		/*if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
-			containers = append(containers, corev1.Container{
-				Name:            "transter-proxy",
-				Image:           os.Getenv("PROXYIMAGE"),
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Env: []corev1.EnvVar{
-					{
-						Name: "POD_NAME",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "metadata.name",
-							}},
-					},
-					{
-						Name: "POD_NAMESPACE",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "metadata.namespace",
-							}},
-					},
-					{
-						Name: "POD_IP",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "status.podIP",
-							}},
-					},
-					{
-						Name:  "URI",
-						Value: component.ComponentTraits.CustomMetric.Uri,
-					},
-				},
-			})
-		}*/ // TODO add container log collect sidecar
 	}
 
 	return containers, nil
