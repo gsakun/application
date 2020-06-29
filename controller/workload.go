@@ -84,6 +84,9 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	var volumes []corev1.Volume //zk
 	for _, i := range component.Containers {
 		for _, j := range i.Resources.Volumes {
+			if j.Name == "" || j.MountPath == "" {
+				continue
+			}
 			if j.Disk.Ephemeral {
 				volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + j.Name,
 					VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
@@ -97,7 +100,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 		}
 		for _, k := range i.Config {
-			if k.FileName == "" {
+			if k.FileName == "" || k.Path == "" {
 				continue
 			}
 			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
@@ -290,13 +293,16 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 		lifecycle := getContainersLifeCycle(cc)
 		var volumes []corev1.VolumeMount
 		for _, j := range cc.Resources.Volumes {
+			if j.Name == "" || j.MountPath == "" {
+				continue
+			}
 			volumes = append(volumes, corev1.VolumeMount{
 				Name:      component.Name + "-" + j.Name,
 				MountPath: j.MountPath,
 			})
 		}
 		for _, k := range cc.Config {
-			if k.FileName == "" {
+			if k.FileName == "" || k.Path == "" {
 				continue
 			}
 			volumes = append(volumes, corev1.VolumeMount{
