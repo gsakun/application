@@ -69,7 +69,8 @@ func NewVirtualServiceObject(app *v3.Application) istiov1alpha3.VirtualService {
 			},*/
 	}
 	// add GrayRelease handlelogic
-	if len(app.Spec.OptTraits.GrayRelease) == 0 {
+	if len(app.Spec.Components) < 2 {
+		app.Spec.OptTraits.GrayRelease = nil
 		httproute.Route = []istiov1alpha3.DestinationWeight{
 			{
 				Destination: istiov1alpha3.Destination{
@@ -80,7 +81,7 @@ func NewVirtualServiceObject(app *v3.Application) istiov1alpha3.VirtualService {
 				},
 			},
 		}
-	} else {
+	} else if len(app.Spec.OptTraits.GrayRelease) >= 2 && len(app.Spec.Components) >= 2 {
 		for version, weight := range app.Spec.OptTraits.GrayRelease {
 			httproute.Route = append(httproute.Route, istiov1alpha3.DestinationWeight{
 				Destination: istiov1alpha3.Destination{
