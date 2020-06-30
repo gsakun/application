@@ -256,14 +256,17 @@ func FromYAML(cfg *MetricsDiscoveryConfig, contents []byte) error {
 
 // generaterule use for generaterule
 func generaterule(app, data, namespace string) (rule DiscoveryRule) {
-	matched, _ := regexp.MatchString(".*---.*---.*", data)
+	/*matched, _ := regexp.MatchString(".*---.*---.*", data)
 	if !matched {
 		return
+	}*/
+	if data == "" {
+		return
 	}
-	split := strings.Split(data, "---")
+	/*split := strings.Split(data, "---")
 	funcation := string(split[0])
 	metric := string(split[1])
-	scope := string(split[2])
+	scope := string(split[2])*/
 	var rmap map[string]GroupResource = make(map[string]GroupResource)
 	rmap["kubernetes_namespace"] = GroupResource{
 		Resource: "namespace",
@@ -272,19 +275,23 @@ func generaterule(app, data, namespace string) (rule DiscoveryRule) {
 		Resource: "pod",
 	}
 	//rule.SeriesQuery = fmt.Sprintf(`%s{kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}`, app.Namespace, app.Name+"-"+component.Name+"-"+"workload"+"-"+component.Version, metric)
-	rule.SeriesQuery = fmt.Sprintf(`%s{kubernetes_namespace!="",kubernetes_pod_name!=""}`, metric)
+	//rule.SeriesQuery = fmt.Sprintf(`%s{kubernetes_namespace!="",kubernetes_pod_name!=""}`, metric)
+	rule.SeriesQuery = fmt.Sprintf(`%s{kubernetes_namespace!="",kubernetes_pod_name!=""}`, data)
 	rule.Resources = ResourceMapping{
 		Overrides: rmap,
 	}
 	rule.Name = NameMapping{
-		Matches: metric,
-		As:      fmt.Sprintf("${1}%s_%s_%s", metric, funcation, scope),
+		//Matches: metric,
+		Matches: data,
+		//As:      fmt.Sprintf("${1}%s_%s_%s", metric, funcation, scope),
+		As: fmt.Sprintf("${1}%s_%s", data, app),
 	}
-	if scope == "all" {
+	rule.MetricsQuery = fmt.Sprintf(`%s(<<.Series>>{<<.LabelMatchers>>,kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}) by (<<.GroupBy>>)`, "avg", namespace, app)
+	/*if scope == "all" {
 		rule.MetricsQuery = fmt.Sprintf(`%s(<<.Series>>{<<.LabelMatchers>>,kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}) by (<<.GroupBy>>)`, funcation, namespace, app)
 	}
 	if scope == "per" {
 		rule.MetricsQuery = fmt.Sprintf(`%s(<<.Series>>{<<.LabelMatchers>>,kubernetes_namespace="%s",kubernetes_pod_name=~"%s.*"}) by (<<.GroupBy>>)`, funcation, namespace, app)
-	}
+	}*/
 	return
 }
