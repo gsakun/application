@@ -100,7 +100,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 		}
 		for _, k := range i.Config {
-			if k.FileName == "" || k.Path == "" {
+			if k.FileName == "" || k.Path == "" || k.Value == "" {
 				continue
 			}
 			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
@@ -450,7 +450,7 @@ func getContainerResources(cc v3.ComponentContainer) corev1.ResourceRequirements
 
 func getContainerEnvs(cc v3.ComponentContainer) (envs []corev1.EnvVar) {
 	for _, ccenv := range cc.Env {
-		if ccenv.FromParam != "" && (ccenv.FromParam == "spec.nodeName" || ccenv.FromParam == "metadata.name" || ccenv.FromParam == "metadata.namespace" || ccenv.FromParam == "status.podIP") {
+		if ccenv.Name != "" && ccenv.FromParam != "" && (ccenv.FromParam == "spec.nodeName" || ccenv.FromParam == "metadata.name" || ccenv.FromParam == "metadata.namespace" || ccenv.FromParam == "status.podIP") {
 			env := corev1.EnvVar{
 				Name: ccenv.Name,
 				ValueFrom: &corev1.EnvVarSource{
@@ -459,7 +459,7 @@ func getContainerEnvs(cc v3.ComponentContainer) (envs []corev1.EnvVar) {
 					}},
 			}
 			envs = append(envs, env)
-		} else {
+		} else if ccenv.Name != "" && ccenv.Value != "" {
 			env := corev1.EnvVar{
 				Name:  ccenv.Name,
 				Value: ccenv.Value,
