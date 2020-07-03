@@ -110,7 +110,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 					Items: []corev1.KeyToPath{
 						{
 							Key:  k.FileName,
-							Path: "tmp/" + k.FileName,
+							Path: "path/to/" + k.FileName,
 						}},
 				}}})
 		}
@@ -174,13 +174,23 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			},
 		},
 	}
+	deploy.Spec.Template.Spec.NodeSelector = make(map[string]string)
+	deploy.Spec.Template.Spec.NodeSelector["user"] = "SP"
+	deploy.Spec.Template.Spec.NodeSelector["type"] = "cpu"
+	for _, i := range component.Containers {
+		if i.Resources.Gpu > 0 {
+			deploy.Spec.Template.Spec.NodeSelector["type"] = "GPU"
+			break
+		}
+	}
+
 	if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy, v3.SchedulePolicy{}) {
-		if component.ComponentTraits.SchedulePolicy.NodeSelector != nil {
-			deploy.Spec.Template.Spec.NodeSelector = component.ComponentTraits.SchedulePolicy.NodeSelector
-			deploy.Spec.Template.Spec.NodeSelector["user"] = "SP"
-		} else {
-			deploy.Spec.Template.Spec.NodeSelector = make(map[string]string)
-			deploy.Spec.Template.Spec.NodeSelector["user"] = "SP"
+		if len(component.ComponentTraits.SchedulePolicy.NodeSelector) != 0 {
+			for k, v := range component.ComponentTraits.SchedulePolicy.NodeSelector {
+				if v != "" {
+					deploy.Spec.Template.Spec.NodeSelector[k] = v
+				}
+			}
 		}
 		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
 			deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
@@ -268,7 +278,6 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				}
 			}
 		}
-
 	}
 	if component.ComponentTraits.TerminationGracePeriodSeconds > 30 {
 		deploy.Spec.Template.Spec.TerminationGracePeriodSeconds = &component.ComponentTraits.TerminationGracePeriodSeconds
@@ -307,20 +316,24 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			}
 			volumes = append(volumes, corev1.VolumeMount{
 				Name:      component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
-				MountPath: k.Path + "/" + k.FileName,
-				SubPath:   "tmp/" + k.FileName,
+				MountPath: strings.TrimSuffix(k.Path, "/") + "/" + k.FileName,
+				SubPath:   "path/to/" + k.FileName,
 			})
 		}
 
 		container := corev1.Container{
 			Name:         cc.Name,
-			Image:        cc.Image,
-			Command:      cc.Command,
-			Args:         cc.Args,
+			Image:        strings.Replace(cc.Image, "//", "/", -1),
 			Ports:        ports,
 			Env:          envs,
 			Resources:    resources,
 			VolumeMounts: volumes,
+		}
+		if len(cc.Command) != 0 {
+			container.Command = cc.Command
+		}
+		if len(cc.Args) != 0 {
+			container.Args = cc.Args
 		}
 		if lifecycle != nil {
 			container.Lifecycle = lifecycle
