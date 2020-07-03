@@ -2,47 +2,7 @@ import requests
 import json
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-'''
-{
-                  "name": "lbj-3",
-                  "namespaceId": "istio-test",
-                  #"version": "v1",
-                  "components": [{
-                      "name": "lbj-3",
-                      "workloadType": "Server",
-                      "containers": [{
-                          "ports": [
-                              {
-                                  "containerPort": 8000
-                              }
-                          ],
-                          "name": "lbj-3",
-                          "imagePullPolicy": "IfNotPresent",
-                          "image": "socp.io/library/hjw-ner:v0"
-                      }],
-                      "optTraits": {
-                              "ingress": {
-                                  "host": "www.lbj-3.com",
-                                  "path": "/",
-                                  "serverPort": 8000
-                              },
-                              "manualScaler": {
-                                  "replicas": 1
-                              },
-                              "whiteList":{
-                                  "users": [""]
-                              }
-                      },
-                      "devTraits": {
-                          "ingressLB": {
-                              "consistentType": "sourceIP"
-                          },
-                          "staticIP": False
-                      }
-                    }]
-              }
-'''
+#url = "https://10.10.111.110"
 url = "https://10.10.111.45:31888"
 #url = "https://10.10.111.54:444"
 #url = "https://183.131.12.19:32067"
@@ -97,84 +57,82 @@ class User:
         }
 
         body = {
-	"name": "gpu-test",
-	"namespaceId": "service",
+	"name": "zk",
+	"namespaceId": "test-ns",
 	"labels": {
-		"projectId": "local_p-rnqx6",
-		"applicationTemplateId": "gpu-test"
+		"projectId": "local_p-2qd4h"
 	},
 	"components": [{
-		"name": "gpu-test",
+		"name": "zk",
 		"version": "v1",
 		"workloadType": "Server",
 		"containers": [{
 			"ports": [{
-				"containerPort": 8888
+				"containerPort": 8000
 			}],
 			"env": [{
-				"name": "PATH",
-				"value": "/root/miniconda3/bin:/root/miniconda3/condabin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-			}],
-			"name": "gpu-test",
-			"imagePullPolicy": "IfNotPresent",
-			"image": "socp.io/library/copysearch-gpu:v1.1",
-			"command": [
-				"python",
-				"/service/server.py"
+					"name": "TEST",
+					"value": "test"
+				},
+				{
+					"name": "POD_IP",
+					"fromParam": "status.podIP"
+				}
 			],
+			"name": "httpbin",
+			"imagePullPolicy": "IfNotPresent",
+			"image": "socp.io/library/httpbin:1031",
 			"resources": {
-				"cpu": "2000m",
-				"memory": "2048Mi",
+				"cpu": "300m",
+				"memory": "300Mi",
 				"volumes": [{
 					"name": "vol1",
-					"mountPath": "/service",
+					"mountPath": "/mnt/test",
 					"disk": {
-						"ephemeral": False,
-						"required": "/home/imageSearch"
+						"ephemeral": True
 					}
 				}]
+			},
+			"livenessProbe": {
+				"exec": {
+					"command": ["cat","/root"]
+				},
+				"initialDelaySeconds": 60,
+				"periodSeconds": 60,
+				"successThreshold": 1,
+				"failureThreshold": 3
 			}
 		}],
-		"optTraits": {
+		"componentTraits": {
+			"replicas": 1,
 			"custommetric": {
 				"enable": True,
-				"uri": "http://127.0.0.1:8888/jaminfo"
+                "uri": "http://127.0.0.1:8000/headers"
 			},
-			"autoscaling": {
-				"metric": "avg---data---all---1m",
-				"threshold": 100,
-				"maxreplicas": 3,
-				"minreplicas": 1
-			},
-			"httpretry": {
-				"attempts": 3,
-				"perTryTimeout": "5s"
-			},
+			"logcollect": False,
+			"terminationGracePeriodSeconds": 60,
 			"schedulePolicy": {
-				"nodeAffinity": {
-					"hardAffinity": True,
-					"labelSelectorRequirement": {
-						"key": "kubernetes.io/hostname",
-						"operator": "In",
-						"values": [
-							"k8s-5.novalocal"
-						]
-					}
+				"podAffinity": {
+					"hardAffinity": True
 				}
-			},
-			"ingress": {
-				"host": "gputest.socp.io",
-				"path": "/",
-				"serverPort": 8888
-			},
-			"manualScaler": {
-				"replicas": 1
-			},
-			"whiteList": {
-				"users": ["zk-1@qq.com"]
 			}
 		}
-	}]
+	}],
+	"optTraits": {
+		"httpretry": {
+			"attempts": 0,
+			"pertrytimeout": "1"
+		},
+		"ingress": {
+			"host": "www.zk.com",
+			"path": "/",
+			"serverPort": 8000
+		},
+		"rateLimit": {
+			"timeDuration": "1m",
+			"requestAmount": 1000
+		}
+	}
 }
         response = requests.post(createapplicationurl, json=body, headers=getheaders,verify=False)
         print (response.text)
@@ -304,13 +262,13 @@ class User:
         print (response.status_code)
 if __name__ == '__main__':
     user = User("admin","socpcloud")
-    print("---Clusters---")
-    clusterlist = user.getclusters()
-    print("---Projects---")
-    for id in clusterlist:
-        user.getproject(id)
+    #print("---Clusters---")
+    #clusterlist = user.getclusters()
+    #print("---Projects---")
+    #for id in clusterlist:
+    #    user.getproject(id)
     #user.createtemplate()
     #user.deletetemplate("fyh-test-service")
     user.createapplication()
-    #user.updateapplication("service","fyhtest")
-    #user.deleteapplication("gpu-test","local:p-rnqx6","service")
+    #user.updateapplication("test-ns","zk-1")
+    #user.deleteapplication("zk-1","local:p-rnqx6","test-ns")
