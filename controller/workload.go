@@ -330,10 +330,20 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			VolumeMounts: volumes,
 		}
 		if len(cc.Command) != 0 {
-			container.Command = cc.Command
+			var commandlist []string
+			for _, i := range cc.Command {
+				list := strings.Split(i, " ")
+				commandlist = append(commandlist, list...)
+			}
+			container.Command = commandlist
 		}
 		if len(cc.Args) != 0 {
-			container.Args = cc.Args
+			var arglist []string
+			for _, i := range cc.Args {
+				list := strings.Split(i, " ")
+				arglist = append(arglist, list...)
+			}
+			container.Args = arglist
 		}
 		if lifecycle != nil {
 			container.Lifecycle = lifecycle
@@ -514,9 +524,14 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 	//log.Debugf("Container info is %v", cc)
 	if !reflect.DeepEqual(cc.LivenessProbe, v3.HealthProbe{}) {
 		if len(cc.LivenessProbe.Exec.Command) != 0 {
+			var commandlist []string
+			for _, i := range cc.LivenessProbe.Exec.Command {
+				list := strings.Split(i, " ")
+				commandlist = append(commandlist, list...)
+			}
 			livenesshandler = corev1.Handler{
 				Exec: &corev1.ExecAction{
-					Command: cc.LivenessProbe.Exec.Command,
+					Command: commandlist,
 				},
 			}
 		} else if cc.LivenessProbe.HTTPGet.Path != "" && cc.LivenessProbe.HTTPGet.Port > 0 {
@@ -544,9 +559,14 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 	}
 	if !reflect.DeepEqual(cc.ReadinessProbe, v3.HealthProbe{}) {
 		if len(cc.ReadinessProbe.Exec.Command) != 0 {
+			var commandlist []string
+			for _, i := range cc.ReadinessProbe.Exec.Command {
+				list := strings.Split(i, " ")
+				commandlist = append(commandlist, list...)
+			}
 			readinesshandler = corev1.Handler{
 				Exec: &corev1.ExecAction{
-					Command: cc.ReadinessProbe.Exec.Command,
+					Command: commandlist,
 				},
 			}
 		} else if cc.ReadinessProbe.HTTPGet.Path != "" && cc.ReadinessProbe.HTTPGet.Port > 0 {
@@ -586,9 +606,14 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 	if cc.Lifecycle.PostStart != nil {
 		if !reflect.DeepEqual(cc.Lifecycle.PostStart.Exec, v3.ExecAction{}) {
 			if len(cc.Lifecycle.PostStart.Exec.Command) != 0 {
+				var commandlist []string
+				for _, i := range cc.Lifecycle.PostStart.Exec.Command {
+					list := strings.Split(i, " ")
+					commandlist = append(commandlist, list...)
+				}
 				lifecycle.PostStart = &corev1.Handler{
 					Exec: &corev1.ExecAction{
-						Command: cc.Lifecycle.PostStart.Exec.Command,
+						Command: commandlist,
 					},
 				}
 			}
@@ -622,9 +647,14 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 	if cc.Lifecycle.PreStop != nil {
 		if !reflect.DeepEqual(cc.Lifecycle.PreStop.Exec, v3.ExecAction{}) {
 			if len(cc.Lifecycle.PreStop.Exec.Command) != 0 {
+				var commandlist []string
+				for _, i := range cc.Lifecycle.PreStop.Exec.Command {
+					list := strings.Split(i, " ")
+					commandlist = append(commandlist, list...)
+				}
 				lifecycle.PreStop = &corev1.Handler{
 					Exec: &corev1.ExecAction{
-						Command: cc.Lifecycle.PreStop.Exec.Command,
+						Command: commandlist,
 					},
 				}
 			}
