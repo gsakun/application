@@ -95,7 +95,8 @@ func NewVirtualServiceObject(app *v3.Application) istiov1alpha3.VirtualService {
 			})
 		}
 	}
-	if !(reflect.DeepEqual(app.Spec.OptTraits.HTTPRetry, v3.HTTPRetry{})) {
+	//if !(reflect.DeepEqual(app.Spec.OptTraits.HTTPRetry, v3.HTTPRetry{})) {
+	if app.Spec.OptTraits.HTTPRetry != nil {
 		httproute.Retries = &istiov1alpha3.HTTPRetry{
 			Attempts:      app.Spec.OptTraits.HTTPRetry.Attempts,
 			PerTryTimeout: app.Spec.OptTraits.HTTPRetry.PerTryTimeout,
@@ -157,26 +158,29 @@ func NewDestinationruleObject(app *v3.Application) istiov1alpha3.DestinationRule
 			})
 		}
 	}
-
-	if app.Spec.OptTraits.LoadBalancer.ConsistentHash.UseSourceIP {
-		lbsetting := new(istiov1alpha3.LoadBalancerSettings)
-		hashlb := new(istiov1alpha3.ConsistentHashLB)
-		hashlb = &istiov1alpha3.ConsistentHashLB{
-			UseSourceIp: true,
+	if app.Spec.OptTraits.LoadBalancer != nil {
+		if app.Spec.OptTraits.LoadBalancer.ConsistentHash != nil {
+			if app.Spec.OptTraits.LoadBalancer.ConsistentHash.UseSourceIP {
+				lbsetting := new(istiov1alpha3.LoadBalancerSettings)
+				hashlb := new(istiov1alpha3.ConsistentHashLB)
+				hashlb = &istiov1alpha3.ConsistentHashLB{
+					UseSourceIp: true,
+				}
+				lbsetting.ConsistentHash = hashlb
+				trafficPolicy.LoadBalancer = lbsetting
+			}
+		} else if lbType := app.Spec.OptTraits.LoadBalancer.Simple; lbType != "" {
+			lbsetting := new(istiov1alpha3.LoadBalancerSettings)
+			switch lbType {
+			case "ROUND_ROBIN":
+				lbsetting.Simple = istiov1alpha3.SimpleLBRoundRobin
+			case "LEAST_CONN":
+				lbsetting.Simple = istiov1alpha3.SimpleLBLeastConn
+			case "RANDOM":
+				lbsetting.Simple = istiov1alpha3.SimpleLBRandom
+			}
+			trafficPolicy.LoadBalancer = lbsetting
 		}
-		lbsetting.ConsistentHash = hashlb
-		trafficPolicy.LoadBalancer = lbsetting
-	} else if lbType := app.Spec.OptTraits.LoadBalancer.Simple; lbType != "" {
-		lbsetting := new(istiov1alpha3.LoadBalancerSettings)
-		switch lbType {
-		case "ROUND_ROBIN":
-			lbsetting.Simple = istiov1alpha3.SimpleLBRoundRobin
-		case "LEAST_CONN":
-			lbsetting.Simple = istiov1alpha3.SimpleLBLeastConn
-		case "RANDOM":
-			lbsetting.Simple = istiov1alpha3.SimpleLBRandom
-		}
-		trafficPolicy.LoadBalancer = lbsetting
 	}
 	if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.ConnectionPool, v3.ConnectionPoolSettings{}) {
 		connectionPoolsetting := new(istiov1alpha3.ConnectionPoolSettings)

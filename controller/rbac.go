@@ -30,15 +30,16 @@ func NewServiceRoleObject(app *v3.Application) istiorbacv1alpha1.ServiceRole {
 // NewServiceRoleBinding Use for generate ServiceRoleBinding
 func NewServiceRoleBinding(app *v3.Application) istiorbacv1alpha1.ServiceRoleBinding {
 	subjects := []istiorbacv1alpha1.Subject{}
+	if app.Spec.OptTraits.WhiteList != nil {
+		for _, e := range app.Spec.OptTraits.WhiteList.Users {
+			subject := istiorbacv1alpha1.Subject{
+				Properties: map[string]string{
+					"request.auth.claims[email]": e,
+				},
+			}
 
-	for _, e := range app.Spec.OptTraits.WhiteList.Users {
-		subject := istiorbacv1alpha1.Subject{
-			Properties: map[string]string{
-				"request.auth.claims[email]": e,
-			},
+			subjects = append(subjects, subject)
 		}
-
-		subjects = append(subjects, subject)
 	}
 
 	serviceRoleBinding := istiorbacv1alpha1.ServiceRoleBinding{
@@ -53,12 +54,14 @@ func NewServiceRoleBinding(app *v3.Application) istiorbacv1alpha1.ServiceRoleBin
 			Annotations:     map[string]string{},
 		},
 		Spec: istiorbacv1alpha1.ServiceRoleBindingSpec{
-			Subjects: subjects,
 			RoleRef: istiorbacv1alpha1.RoleRef{
 				Kind: "ServiceRole",
 				Name: app.Name + "-" + "servicerole",
 			},
 		},
+	}
+	if len(subjects) != 0 {
+		serviceRoleBinding.Spec.Subjects = subjects
 	}
 
 	return serviceRoleBinding

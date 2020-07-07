@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"reflect"
-
 	log "github.com/sirupsen/logrus"
 
 	//typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -194,16 +192,18 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 			c.syncHpa(&component, app, ownerRefOfDeploy)
 		}
 	}
-	if len(app.Spec.OptTraits.Fusing.PodList) != 0 {
-		log.Infoln("START FUSING")
-		var action bool = false
-		if app.Spec.OptTraits.Fusing.Action == "in" {
-			action = true
+	if app.Spec.OptTraits.Fusing != nil {
+		if len(app.Spec.OptTraits.Fusing.PodList) != 0 {
+			log.Infoln("START FUSING")
+			var action bool = false
+			if app.Spec.OptTraits.Fusing.Action == "in" {
+				action = true
+			}
+			for _, i := range app.Spec.OptTraits.Fusing.PodList {
+				c.syncFusing(i, app.Namespace, action)
+			}
+			app.Spec.OptTraits.Fusing = nil
 		}
-		for _, i := range app.Spec.OptTraits.Fusing.PodList {
-			c.syncFusing(i, app.Namespace, action)
-		}
-		app.Spec.OptTraits.Fusing = nil
 	}
 	c.syncService(app)
 	c.syncAuthor(app)
@@ -492,7 +492,8 @@ func (c *controller) syncService(app *v3.Application) error {
 			}
 		}
 	}
-	if !(reflect.DeepEqual(app.Spec.OptTraits.LoadBalancer, v3.LoadBalancerSettings{})) || !(reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
+	//if !(reflect.DeepEqual(app.Spec.OptTraits.LoadBalancer, v3.LoadBalancerSettings{})) || !(reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
+	if app.Spec.OptTraits.LoadBalancer != nil || app.Spec.OptTraits.CircuitBreaking != nil {
 		destObject := NewDestinationruleObject(app)
 		destObjectString := GetObjectApplied(destObject)
 		destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
@@ -531,13 +532,15 @@ func (c *controller) syncAuthor(app *v3.Application) error {
 	serviceRoleBinding, err := c.serviceRoleBindingLister.Get(app.Namespace, object.Name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if len(app.Spec.OptTraits.WhiteList.Users) == 0 {
-				log.Infoln("whitelist.user is nil,there is nothing to do")
-				return nil
-			}
-			_, err = c.serviceRoleBindingClient.Create(&object)
-			if err != nil {
-				log.Errorf("Create servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
+			if app.Spec.OptTraits.WhiteList != nil {
+				if len(app.Spec.OptTraits.WhiteList.Users) == 0 {
+					log.Infoln("whitelist.user is nil,there is nothing to do")
+					return nil
+				}
+				_, err = c.serviceRoleBindingClient.Create(&object)
+				if err != nil {
+					log.Errorf("Create servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
+				}
 			}
 		}
 	} else {
@@ -567,7 +570,7 @@ func (c *controller) syncAuthor(app *v3.Application) error {
 }
 
 func (c *controller) syncPolicy(app *v3.Application) error {
-	if app.Spec.OptTraits.RateLimit.TimeDuration != "" {
+	if app.Spec.OptTraits.RateLimit != nil {
 		c.syncQuotaPolicy(app)
 	}
 	return nil

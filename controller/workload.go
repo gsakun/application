@@ -184,7 +184,8 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		}
 	}
 
-	if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy, v3.SchedulePolicy{}) {
+	//if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy, v3.SchedulePolicy{}) {
+	if component.ComponentTraits.SchedulePolicy != nil {
 		if len(component.ComponentTraits.SchedulePolicy.NodeSelector) != 0 {
 			for k, v := range component.ComponentTraits.SchedulePolicy.NodeSelector {
 				if v != "" {
@@ -192,7 +193,8 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				}
 			}
 		}
-		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
+		//if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
+		if component.ComponentTraits.SchedulePolicy.NodeAffinity != nil {
 			deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			if component.ComponentTraits.SchedulePolicy.NodeAffinity.HardAffinity {
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity = new(corev1.NodeAffinity)
@@ -227,7 +229,8 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				}
 			}
 		}
-		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAffinity, v3.CPodAffinity{}) {
+		//if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAffinity, v3.CPodAffinity{}) {
+		if component.ComponentTraits.SchedulePolicy.PodAffinity != nil {
 			if deploy.Spec.Template.Spec.Affinity == nil {
 				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			}
@@ -253,7 +256,8 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			}
 		}
 
-		if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAntiAffinity, v3.CPodAntiAffinity{}) {
+		//if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.PodAntiAffinity, v3.CPodAntiAffinity{}) {
+		if component.ComponentTraits.SchedulePolicy.PodAntiAffinity != nil {
 			if deploy.Spec.Template.Spec.Affinity == nil {
 				deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
 			}
@@ -282,11 +286,13 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	if component.ComponentTraits.TerminationGracePeriodSeconds > 30 {
 		deploy.Spec.Template.Spec.TerminationGracePeriodSeconds = &component.ComponentTraits.TerminationGracePeriodSeconds
 	}
-	if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
-		deploy.Spec.Template.Annotations = make(map[string]string)
-		deploy.Spec.Template.Annotations["prometheus.io/path"] = "/metrics"
-		deploy.Spec.Template.Annotations["prometheus.io/port"] = "16666"
-		deploy.Spec.Template.Annotations["prometheus.io/scrape"] = "true"
+	if component.ComponentTraits.CustomMetric != nil {
+		if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
+			deploy.Spec.Template.Annotations = make(map[string]string)
+			deploy.Spec.Template.Annotations["prometheus.io/path"] = "/metrics"
+			deploy.Spec.Template.Annotations["prometheus.io/port"] = "16666"
+			deploy.Spec.Template.Annotations["prometheus.io/scrape"] = "true"
+		}
 	}
 	// TODO OPEN METRIC TRANSFR
 	return deploy
@@ -365,50 +371,52 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 			}
 		}
 		containers = append(containers, container)
-		if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
-			resources := map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceCPU:    resource.MustParse("50m"),
-				corev1.ResourceMemory: resource.MustParse("50Mi"),
+		if component.ComponentTraits.CustomMetric != nil {
+			if component.ComponentTraits.CustomMetric.Enable && component.ComponentTraits.CustomMetric.Uri != "" {
+				resources := map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse("50m"),
+					corev1.ResourceMemory: resource.MustParse("50Mi"),
+				}
+				containers = append(containers, corev1.Container{
+					Name:            "transter-proxy",
+					Image:           os.Getenv("PROXYIMAGE"),
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Resources: corev1.ResourceRequirements{
+						Limits:   resources,
+						Requests: resources,
+					},
+					Env: []corev1.EnvVar{
+						{
+							Name: "POD_NAME",
+							ValueFrom: &corev1.EnvVarSource{
+								FieldRef: &corev1.ObjectFieldSelector{
+									APIVersion: "v1",
+									FieldPath:  "metadata.name",
+								}},
+						},
+						{
+							Name: "POD_NAMESPACE",
+							ValueFrom: &corev1.EnvVarSource{
+								FieldRef: &corev1.ObjectFieldSelector{
+									APIVersion: "v1",
+									FieldPath:  "metadata.namespace",
+								}},
+						},
+						{
+							Name: "POD_IP",
+							ValueFrom: &corev1.EnvVarSource{
+								FieldRef: &corev1.ObjectFieldSelector{
+									APIVersion: "v1",
+									FieldPath:  "status.podIP",
+								}},
+						},
+						{
+							Name:  "URI",
+							Value: component.ComponentTraits.CustomMetric.Uri,
+						},
+					},
+				})
 			}
-			containers = append(containers, corev1.Container{
-				Name:            "transter-proxy",
-				Image:           os.Getenv("PROXYIMAGE"),
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Resources: corev1.ResourceRequirements{
-					Limits:   resources,
-					Requests: resources,
-				},
-				Env: []corev1.EnvVar{
-					{
-						Name: "POD_NAME",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "metadata.name",
-							}},
-					},
-					{
-						Name: "POD_NAMESPACE",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "metadata.namespace",
-							}},
-					},
-					{
-						Name: "POD_IP",
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "status.podIP",
-							}},
-					},
-					{
-						Name:  "URI",
-						Value: component.ComponentTraits.CustomMetric.Uri,
-					},
-				},
-			})
 		}
 
 		if component.ComponentTraits.Logcollect && os.Getenv("LOGCOLLECT_CONFIGMAP_NAME") != "" {
@@ -522,7 +530,8 @@ func getContainerPorts(cc v3.ComponentContainer) []corev1.ContainerPort {
 // zk generate health check model data
 func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.Handler, readinesshandler corev1.Handler) {
 	//log.Debugf("Container info is %v", cc)
-	if !reflect.DeepEqual(cc.LivenessProbe, v3.HealthProbe{}) {
+	//if !reflect.DeepEqual(cc.LivenessProbe, v3.HealthProbe{}) {
+	if cc.LivenessProbe != nil {
 		if len(cc.LivenessProbe.Exec.Command) != 0 {
 			var commandlist []string
 			for _, i := range cc.LivenessProbe.Exec.Command {
@@ -557,7 +566,8 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 			livenesshandler = corev1.Handler{}
 		}
 	}
-	if !reflect.DeepEqual(cc.ReadinessProbe, v3.HealthProbe{}) {
+	//if !reflect.DeepEqual(cc.ReadinessProbe, v3.HealthProbe{}) {
+	if cc.ReadinessProbe != nil {
 		if len(cc.ReadinessProbe.Exec.Command) != 0 {
 			var commandlist []string
 			for _, i := range cc.ReadinessProbe.Exec.Command {
@@ -597,11 +607,12 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 
 // zk generate pod lifecycle
 func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecycle) {
+	//if reflect.DeepEqual(cc.Lifecycle, v3.CLifecycle{}) {
+	if cc.Lifecycle == nil {
+		return nil
+	}
 	// new lifecycle memory address
 	lifecycle = new(corev1.Lifecycle)
-	if reflect.DeepEqual(cc.Lifecycle, v3.CLifecycle{}) {
-		return lifecycle
-	}
 	log.Debugf("Container info is %v", cc)
 	if cc.Lifecycle.PostStart != nil {
 		if !reflect.DeepEqual(cc.Lifecycle.PostStart.Exec, v3.ExecAction{}) {
