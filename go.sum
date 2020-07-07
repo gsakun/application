@@ -81,6 +81,8 @@ github.com/gsakun/types v0.0.0-20200612144151-977065b44fda h1:FGl5IR8o2hPWec/4yi
 github.com/gsakun/types v0.0.0-20200612144151-977065b44fda/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
 github.com/gsakun/types v0.0.0-20200707033119-4947dd688cfa h1:N8fNz96TxOM6hqIUNElY4mYzcZKs1Zm5iskOHxJrgvY=
 github.com/gsakun/types v0.0.0-20200707033119-4947dd688cfa/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
+github.com/gsakun/types v0.0.0-20200707093910-501e392a5d84 h1:STVgEqz3i0h93GfVc1uUJY66apPl8dSuoY7yuufyU2M=
+github.com/gsakun/types v0.0.0-20200707093910-501e392a5d84/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
 github.com/hashicorp/golang-lru v0.5.1 h1:0hERBMJE1eitiLkihrMvRVBYAkpHzc/J3QdDN+dAcgU=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/imdario/mergo v0.3.7 h1:Y+UAYTZ7gDEuOfhxKWy+dvb5dRQ6rJjFSdX2HZY1/gI=
