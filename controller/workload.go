@@ -532,35 +532,41 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 	//log.Debugf("Container info is %v", cc)
 	//if !reflect.DeepEqual(cc.LivenessProbe, v3.HealthProbe{}) {
 	if cc.LivenessProbe != nil {
-		if len(cc.LivenessProbe.Exec.Command) != 0 {
-			var commandlist []string
-			for _, i := range cc.LivenessProbe.Exec.Command {
-				list := strings.Split(i, " ")
-				commandlist = append(commandlist, list...)
-			}
-			livenesshandler = corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: commandlist,
-				},
-			}
-		} else if cc.LivenessProbe.HTTPGet.Path != "" && cc.LivenessProbe.HTTPGet.Port > 0 {
-			livenesshandler = corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: cc.LivenessProbe.HTTPGet.Path,
-					Port: intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: int32(cc.LivenessProbe.HTTPGet.Port),
+		if cc.LivenessProbe.Exec != nil {
+			if len(cc.LivenessProbe.Exec.Command) != 0 {
+				var commandlist []string
+				for _, i := range cc.LivenessProbe.Exec.Command {
+					list := strings.Split(i, " ")
+					commandlist = append(commandlist, list...)
+				}
+				livenesshandler = corev1.Handler{
+					Exec: &corev1.ExecAction{
+						Command: commandlist,
 					},
-				},
+				}
 			}
-		} else if cc.LivenessProbe.TCPSocket.Port > 0 {
-			livenesshandler = corev1.Handler{
-				TCPSocket: &corev1.TCPSocketAction{
-					Port: intstr.IntOrString{
-						IntVal: int32(cc.LivenessProbe.TCPSocket.Port),
-						Type:   intstr.Int,
+		} else if cc.LivenessProbe.HTTPGet != nil {
+			if cc.LivenessProbe.HTTPGet.Path != "" && cc.LivenessProbe.HTTPGet.Port > 0 {
+				livenesshandler = corev1.Handler{
+					HTTPGet: &corev1.HTTPGetAction{
+						Path: cc.LivenessProbe.HTTPGet.Path,
+						Port: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: int32(cc.LivenessProbe.HTTPGet.Port),
+						},
 					},
-				},
+				}
+			}
+		} else if cc.LivenessProbe.TCPSocket != nil {
+			if cc.LivenessProbe.TCPSocket.Port > 0 {
+				livenesshandler = corev1.Handler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.IntOrString{
+							IntVal: int32(cc.LivenessProbe.TCPSocket.Port),
+							Type:   intstr.Int,
+						},
+					},
+				}
 			}
 		} else {
 			livenesshandler = corev1.Handler{}
@@ -568,35 +574,41 @@ func getContainersHealthCheck(cc v3.ComponentContainer) (livenesshandler corev1.
 	}
 	//if !reflect.DeepEqual(cc.ReadinessProbe, v3.HealthProbe{}) {
 	if cc.ReadinessProbe != nil {
-		if len(cc.ReadinessProbe.Exec.Command) != 0 {
-			var commandlist []string
-			for _, i := range cc.ReadinessProbe.Exec.Command {
-				list := strings.Split(i, " ")
-				commandlist = append(commandlist, list...)
-			}
-			readinesshandler = corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: commandlist,
-				},
-			}
-		} else if cc.ReadinessProbe.HTTPGet.Path != "" && cc.ReadinessProbe.HTTPGet.Port > 0 {
-			readinesshandler = corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: cc.ReadinessProbe.HTTPGet.Path,
-					Port: intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: int32(cc.ReadinessProbe.HTTPGet.Port),
+		if cc.ReadinessProbe.Exec != nil {
+			if len(cc.ReadinessProbe.Exec.Command) != 0 {
+				var commandlist []string
+				for _, i := range cc.ReadinessProbe.Exec.Command {
+					list := strings.Split(i, " ")
+					commandlist = append(commandlist, list...)
+				}
+				readinesshandler = corev1.Handler{
+					Exec: &corev1.ExecAction{
+						Command: commandlist,
 					},
-				},
+				}
 			}
-		} else if cc.ReadinessProbe.TCPSocket.Port > 0 {
-			readinesshandler = corev1.Handler{
-				TCPSocket: &corev1.TCPSocketAction{
-					Port: intstr.IntOrString{
-						IntVal: int32(cc.ReadinessProbe.TCPSocket.Port),
-						Type:   intstr.Int,
+		} else if cc.ReadinessProbe.HTTPGet != nil {
+			if cc.ReadinessProbe.HTTPGet.Path != "" && cc.ReadinessProbe.HTTPGet.Port > 0 {
+				readinesshandler = corev1.Handler{
+					HTTPGet: &corev1.HTTPGetAction{
+						Path: cc.ReadinessProbe.HTTPGet.Path,
+						Port: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: int32(cc.ReadinessProbe.HTTPGet.Port),
+						},
 					},
-				},
+				}
+			}
+		} else if cc.ReadinessProbe.TCPSocket != nil {
+			if cc.ReadinessProbe.TCPSocket.Port > 0 {
+				readinesshandler = corev1.Handler{
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.IntOrString{
+							IntVal: int32(cc.ReadinessProbe.TCPSocket.Port),
+							Type:   intstr.Int,
+						},
+					},
+				}
 			}
 		} else {
 			readinesshandler = corev1.Handler{}
@@ -615,7 +627,7 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 	lifecycle = new(corev1.Lifecycle)
 	log.Debugf("Container info is %v", cc)
 	if cc.Lifecycle.PostStart != nil {
-		if !reflect.DeepEqual(cc.Lifecycle.PostStart.Exec, v3.ExecAction{}) {
+		if cc.Lifecycle.PostStart.Exec != nil {
 			if len(cc.Lifecycle.PostStart.Exec.Command) != 0 {
 				var commandlist []string
 				for _, i := range cc.Lifecycle.PostStart.Exec.Command {
@@ -629,7 +641,7 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 				}
 			}
 		}
-		if !reflect.DeepEqual(cc.Lifecycle.PostStart.HTTPGet, v3.HTTPGetAction{}) {
+		if cc.Lifecycle.PostStart.HTTPGet != nil {
 			if cc.Lifecycle.PostStart.HTTPGet.Path != "" && cc.Lifecycle.PostStart.HTTPGet.Port > 0 {
 				lifecycle.PostStart = &corev1.Handler{
 					HTTPGet: &corev1.HTTPGetAction{
@@ -642,7 +654,7 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 				}
 			}
 		}
-		if !reflect.DeepEqual(cc.Lifecycle.PostStart.TCPSocket, v3.TCPSocketAction{}) {
+		if cc.Lifecycle.PostStart.TCPSocket != nil {
 			if cc.Lifecycle.PostStart.TCPSocket.Port > 0 {
 				lifecycle.PostStart = &corev1.Handler{
 					TCPSocket: &corev1.TCPSocketAction{
@@ -656,7 +668,7 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 		}
 	}
 	if cc.Lifecycle.PreStop != nil {
-		if !reflect.DeepEqual(cc.Lifecycle.PreStop.Exec, v3.ExecAction{}) {
+		if cc.Lifecycle.PreStop.Exec != nil {
 			if len(cc.Lifecycle.PreStop.Exec.Command) != 0 {
 				var commandlist []string
 				for _, i := range cc.Lifecycle.PreStop.Exec.Command {
@@ -670,7 +682,7 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 				}
 			}
 		}
-		if !reflect.DeepEqual(cc.Lifecycle.PreStop.HTTPGet, v3.HTTPGetAction{}) {
+		if cc.Lifecycle.PreStop.HTTPGet != nil {
 			if cc.Lifecycle.PreStop.HTTPGet.Path != "" && cc.Lifecycle.PreStop.HTTPGet.Port > 0 {
 				lifecycle.PreStop = &corev1.Handler{
 					HTTPGet: &corev1.HTTPGetAction{
@@ -683,7 +695,7 @@ func getContainersLifeCycle(cc v3.ComponentContainer) (lifecycle *corev1.Lifecyc
 				}
 			}
 		}
-		if !reflect.DeepEqual(cc.Lifecycle.PreStop.TCPSocket, v3.TCPSocketAction{}) {
+		if cc.Lifecycle.PreStop.TCPSocket != nil {
 			if cc.Lifecycle.PreStop.TCPSocket.Port > 0 {
 				lifecycle.PreStop = &corev1.Handler{
 					TCPSocket: &corev1.TCPSocketAction{
