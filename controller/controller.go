@@ -203,7 +203,7 @@ func (c *controller) sync(key string, app *v3.Application) (runtime.Object, erro
 		for _, i := range app.Spec.OptTraits.Fusing.PodList {
 			c.syncFusing(i, app.Namespace, action)
 		}
-		app.Spec.OptTraits.Fusing = v3.Fusing{}
+		app.Spec.OptTraits.Fusing = nil
 	}
 	c.syncService(app)
 	c.syncAuthor(app)
