@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -76,7 +75,8 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 }
 
 func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	if !(reflect.DeepEqual(component.ComponentTraits.Autoscaling, v3.Autoscaling{})) {
+	//if !(reflect.DeepEqual(component.ComponentTraits.Autoscaling, v3.Autoscaling{})) {
+	if component.ComponentTraits.Autoscaling != nil {
 		log.Infof("Sync hpa for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		c.syncAutoScaleConfigMap(component, app)
 		c.syncAutoScale(component, app, ref)
