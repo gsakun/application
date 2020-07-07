@@ -25,7 +25,7 @@ require (
 )
 
 replace (
-	github.com/hd-Li/types => github.com/gsakun/types v0.0.0-20200707033119-4947dd688cfa
+	github.com/hd-Li/types => github.com/gsakun/types v0.0.0-20200707093910-501e392a5d84
 	github.com/knative/pkg => github.com/gsakun/pkg v0.0.0-20200421071615-21c5df62549f
 	k8s.io/api => k8s.io/api v0.0.0-20181004124137-fd83cbc87e76
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20181004124836-1748dfb29e8a
