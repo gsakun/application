@@ -493,7 +493,7 @@ func (c *controller) syncService(app *v3.Application) error {
 		}
 	}
 	//if !(reflect.DeepEqual(app.Spec.OptTraits.LoadBalancer, v3.LoadBalancerSettings{})) || !(reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
-	if app.Spec.OptTraits.LoadBalancer != nil || app.Spec.OptTraits.CircuitBreaking != nil {
+	if app.Spec.OptTraits.LoadBalancer != nil || app.Spec.OptTraits.CircuitBreaking != nil || len(app.Spec.OptTraits.GrayRelease) >= 2 {
 		destObject := NewDestinationruleObject(app)
 		destObjectString := GetObjectApplied(destObject)
 		destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
