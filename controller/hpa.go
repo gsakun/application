@@ -21,16 +21,14 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 	var metrics []v2beta2.MetricSpec
 	if component.ComponentTraits.Autoscaling != nil {
 		if component.ComponentTraits.Autoscaling.Metric != "cpu" && component.ComponentTraits.Autoscaling.Metric != "memory" {
-			funcation := "avg"
 			metric := component.ComponentTraits.Autoscaling.Metric
-			scope := "all"
 			threshold := strconv.FormatInt(int64(component.ComponentTraits.Autoscaling.Threshold), 10)
 			value := resource.MustParse(threshold)
 			metrics = append(metrics, v2beta2.MetricSpec{
 				Type: v2beta2.PodsMetricSourceType,
 				Pods: &v2beta2.PodsMetricSource{
 					Metric: v2beta2.MetricIdentifier{
-						Name: fmt.Sprintf("%s_%s_%s", metric, funcation, scope),
+						Name: fmt.Sprintf("%s_%s", metric, app.Name+"-"+component.Name+"-workload-"+component.Version),
 					},
 					Target: v2beta2.MetricTarget{
 						Type:         v2beta2.AverageValueMetricType,
