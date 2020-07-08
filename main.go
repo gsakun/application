@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	kubeConfig string = "./config54"
+	kubeConfig string = "./config45"
 )
 
 func init() {

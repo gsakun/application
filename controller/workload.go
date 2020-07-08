@@ -185,6 +185,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	}
 
 	//if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy, v3.SchedulePolicy{}) {
+	log.Infof("NodeAffinity %v", component.ComponentTraits.SchedulePolicy.NodeAffinity)
 	if component.ComponentTraits.SchedulePolicy != nil {
 		if len(component.ComponentTraits.SchedulePolicy.NodeSelector) != 0 {
 			for k, v := range component.ComponentTraits.SchedulePolicy.NodeSelector {
@@ -196,7 +197,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 		//if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy.NodeAffinity, v3.CNodeAffinity{}) {
 		if component.ComponentTraits.SchedulePolicy.NodeAffinity != nil {
 			deploy.Spec.Template.Spec.Affinity = new(corev1.Affinity)
-			if component.ComponentTraits.SchedulePolicy.NodeAffinity.HardAffinity {
+			if component.ComponentTraits.SchedulePolicy.NodeAffinity.HardAffinity && component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement != nil {
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity = new(corev1.NodeAffinity)
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
 					NodeSelectorTerms: []corev1.NodeSelectorTerm{
@@ -211,7 +212,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 						},
 					},
 				}
-			} else {
+			} else if !component.ComponentTraits.SchedulePolicy.NodeAffinity.HardAffinity && component.ComponentTraits.SchedulePolicy.NodeAffinity.CLabelSelectorRequirement != nil {
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity = new(corev1.NodeAffinity)
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
 					{
