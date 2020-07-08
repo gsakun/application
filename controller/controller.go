@@ -493,34 +493,34 @@ func (c *controller) syncService(app *v3.Application) error {
 		}
 	}
 	//if !(reflect.DeepEqual(app.Spec.OptTraits.LoadBalancer, v3.LoadBalancerSettings{})) || !(reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking, v3.CircuitBreaking{})) {
-	if app.Spec.OptTraits.LoadBalancer != nil || app.Spec.OptTraits.CircuitBreaking != nil || len(app.Spec.OptTraits.GrayRelease) >= 2 {
-		destObject := NewDestinationruleObject(app)
-		destObjectString := GetObjectApplied(destObject)
-		log.Debugf("Destinationrule %s", destObjectString)
-		destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
+	//if app.Spec.OptTraits.LoadBalancer != nil || app.Spec.OptTraits.CircuitBreaking != nil || len(app.Spec.OptTraits.GrayRelease) >= 2 {
+	destObject := NewDestinationruleObject(app)
+	destObjectString := GetObjectApplied(destObject)
+	log.Debugf("Destinationrule %s", destObjectString)
+	destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
 
-		dest, err := c.destLister.Get(app.Namespace, (app.Name + "-" + "destinationrule"))
-		if err != nil {
-			//log.Errorf("Get DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
-			if errors.IsNotFound(err) {
-				_, err = c.destClient.Create(&destObject)
-				if err != nil {
-					log.Errorf("Create DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
-				}
+	dest, err := c.destLister.Get(app.Namespace, (app.Name + "-" + "destinationrule"))
+	if err != nil {
+		//log.Errorf("Get DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+		if errors.IsNotFound(err) {
+			_, err = c.destClient.Create(&destObject)
+			if err != nil {
+				log.Errorf("Create DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 			}
-		} else {
+		}
+	} else {
 
-			if dest != nil {
-				if dest.Annotations[LastAppliedConfigAnnotation] != destObjectString {
-					destObject.ObjectMeta.ResourceVersion = dest.ObjectMeta.ResourceVersion
-					_, err := c.destClient.Update(&destObject)
-					if err != nil {
-						log.Errorf("Update DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
-					}
+		if dest != nil {
+			if dest.Annotations[LastAppliedConfigAnnotation] != destObjectString {
+				destObject.ObjectMeta.ResourceVersion = dest.ObjectMeta.ResourceVersion
+				_, err := c.destClient.Update(&destObject)
+				if err != nil {
+					log.Errorf("Update DestinationRule error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
 				}
 			}
 		}
 	}
+	//}
 
 	return nil
 }
