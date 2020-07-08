@@ -185,7 +185,6 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	}
 
 	//if !reflect.DeepEqual(component.ComponentTraits.SchedulePolicy, v3.SchedulePolicy{}) {
-	log.Infof("NodeAffinity %v", component.ComponentTraits.SchedulePolicy.NodeAffinity)
 	if component.ComponentTraits.SchedulePolicy != nil {
 		if len(component.ComponentTraits.SchedulePolicy.NodeSelector) != 0 {
 			for k, v := range component.ComponentTraits.SchedulePolicy.NodeSelector {
