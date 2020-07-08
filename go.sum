@@ -74,6 +74,8 @@ github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 h1:+ngKgrYPPJr
 github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79/go.mod h1:FecbI9+v66THATjSRHfNgh1IVFe/9kFxbXtjV0ctIMA=
 github.com/gsakun/pkg v0.0.0-20200421071615-21c5df62549f h1:IDYPCDGdv6Wx3yKZQQ988PLKdYuMdNAdqWpYRuQypKI=
 github.com/gsakun/pkg v0.0.0-20200421071615-21c5df62549f/go.mod h1:vFnzSiyAACaqAWM9Xpnppag87yktnFQuIm/3xuQvno4=
+github.com/gsakun/pkg v0.0.0-20200708083719-628bc1969d8c h1:RiEXOwyZhB7DuyQDwxXTccrpyw6Lf8KnEEUUdjYkI2U=
+github.com/gsakun/pkg v0.0.0-20200708083719-628bc1969d8c/go.mod h1:vFnzSiyAACaqAWM9Xpnppag87yktnFQuIm/3xuQvno4=
 github.com/gsakun/types v0.0.0-20200708022911-3e922ec153f7 h1:p2kSEHur6Q4A+o9Dlzi5fpCHUc1StLwOTgb2jb34R2I=
 github.com/gsakun/types v0.0.0-20200708022911-3e922ec153f7/go.mod h1:og0bBhTO3Z5WS5SAcaxmDt3x65lkP87+FoENQGwBn3k=
 github.com/gsakun/types v0.0.0-20200708030114-faa2685cf97c h1:SQNnoaY3XPStT5HMFKUW5ieGrLKiSeSQXSOVomkEEDI=
