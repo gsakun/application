@@ -100,6 +100,12 @@ func NewVirtualServiceObject(app *v3.Application) istiov1alpha3.VirtualService {
 			PerTryTimeout: app.Spec.OptTraits.HTTPRetry.PerTryTimeout,
 			RetryOn:       "5xx,gateway-error,connect-failure,refused-stream",
 		}
+	} else {
+		httproute.Retries = &istiov1alpha3.HTTPRetry{
+			Attempts:      3,
+			PerTryTimeout: "10s",
+			RetryOn:       "5xx,gateway-error,connect-failure,refused-stream",
+		}
 	}
 
 	httproutes = append(httproutes, httproute)
