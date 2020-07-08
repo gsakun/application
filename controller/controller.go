@@ -496,7 +496,7 @@ func (c *controller) syncService(app *v3.Application) error {
 	if app.Spec.OptTraits.LoadBalancer != nil || app.Spec.OptTraits.CircuitBreaking != nil || len(app.Spec.OptTraits.GrayRelease) >= 2 {
 		destObject := NewDestinationruleObject(app)
 		destObjectString := GetObjectApplied(destObject)
-		log.Infof("Destinationrule %s", destObjectString)
+		log.Debugf("Destinationrule %s", destObjectString)
 		destObject.Annotations[LastAppliedConfigAnnotation] = destObjectString
 
 		dest, err := c.destLister.Get(app.Namespace, (app.Name + "-" + "destinationrule"))
