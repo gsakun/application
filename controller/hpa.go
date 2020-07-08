@@ -2,8 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 
 	"strconv"
 
@@ -21,57 +19,58 @@ import (
 // NewAutoScaleInstance Use for generate NewAutoScaleInstance
 func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) v2beta2.HorizontalPodAutoscaler {
 	var metrics []v2beta2.MetricSpec
-	matched, _ := regexp.MatchString(".*---.*---.*", component.ComponentTraits.Autoscaling.Metric)
-	if matched {
-		split := strings.Split(component.ComponentTraits.Autoscaling.Metric, "---")
-		funcation := string(split[0])
-		metric := string(split[1])
-		scope := string(split[2])
-		threshold := strconv.FormatInt(int64(component.ComponentTraits.Autoscaling.Threshold), 10)
-		value := resource.MustParse(threshold)
-		metrics = append(metrics, v2beta2.MetricSpec{
-			Type: v2beta2.PodsMetricSourceType,
-			Pods: &v2beta2.PodsMetricSource{
-				Metric: v2beta2.MetricIdentifier{
-					Name: fmt.Sprintf("%s_%s_%s", metric, funcation, scope),
+	if component.ComponentTraits.Autoscaling != nil {
+		if component.ComponentTraits.Autoscaling.Metric != "cpu" && component.ComponentTraits.Autoscaling.Metric != "memory" {
+			funcation := "avg"
+			metric := component.ComponentTraits.Autoscaling.Metric
+			scope := "all"
+			threshold := strconv.FormatInt(int64(component.ComponentTraits.Autoscaling.Threshold), 10)
+			value := resource.MustParse(threshold)
+			metrics = append(metrics, v2beta2.MetricSpec{
+				Type: v2beta2.PodsMetricSourceType,
+				Pods: &v2beta2.PodsMetricSource{
+					Metric: v2beta2.MetricIdentifier{
+						Name: fmt.Sprintf("%s_%s_%s", metric, funcation, scope),
+					},
+					Target: v2beta2.MetricTarget{
+						Type:         v2beta2.AverageValueMetricType,
+						AverageValue: &value,
+					},
 				},
-				Target: v2beta2.MetricTarget{
-					Type:         v2beta2.AverageValueMetricType,
-					AverageValue: &value,
+			})
+		}
+		if component.ComponentTraits.Autoscaling.Metric == "cpu" || component.ComponentTraits.Autoscaling.Metric == "memory" {
+			metrics = append(metrics, v2beta2.MetricSpec{
+				Type: v2beta2.ResourceMetricSourceType,
+				Resource: &v2beta2.ResourceMetricSource{
+					Target: v2beta2.MetricTarget{
+						Type:               "Utilization",
+						AverageUtilization: &component.ComponentTraits.Autoscaling.Threshold,
+					},
+					Name: corev1.ResourceName(component.ComponentTraits.Autoscaling.Metric),
 				},
+			})
+		}
+		hpa := v2beta2.HorizontalPodAutoscaler{
+			ObjectMeta: metav1.ObjectMeta{
+				//OwnerReferences: []metav1.OwnerReference{ownerRef},
+				Namespace: app.Namespace,
+				Name:      app.Name + "-" + component.Name + "-" + component.Version + "-hpa",
 			},
-		})
-	}
-	if component.ComponentTraits.Autoscaling.Metric == "cpu" || component.ComponentTraits.Autoscaling.Metric == "memory" {
-		metrics = append(metrics, v2beta2.MetricSpec{
-			Type: v2beta2.ResourceMetricSourceType,
-			Resource: &v2beta2.ResourceMetricSource{
-				Target: v2beta2.MetricTarget{
-					Type:               "Utilization",
-					AverageUtilization: &component.ComponentTraits.Autoscaling.Threshold,
+			Spec: v2beta2.HorizontalPodAutoscalerSpec{
+				ScaleTargetRef: v2beta2.CrossVersionObjectReference{
+					Kind:       "Deployment",
+					Name:       app.Name + "-" + component.Name + "-" + "workload" + "-" + component.Version,
+					APIVersion: ref.APIVersion,
 				},
-				Name: corev1.ResourceName(component.ComponentTraits.Autoscaling.Metric),
+				MinReplicas: &component.ComponentTraits.Autoscaling.MinReplicas,
+				MaxReplicas: component.ComponentTraits.Autoscaling.MaxReplicas,
+				Metrics:     metrics,
 			},
-		})
+		}
+		return hpa
 	}
-	hpa := v2beta2.HorizontalPodAutoscaler{
-		ObjectMeta: metav1.ObjectMeta{
-			//OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Namespace: app.Namespace,
-			Name:      app.Name + "-" + component.Name + "-" + component.Version + "-hpa",
-		},
-		Spec: v2beta2.HorizontalPodAutoscalerSpec{
-			ScaleTargetRef: v2beta2.CrossVersionObjectReference{
-				Kind:       "Deployment",
-				Name:       app.Name + "-" + component.Name + "-" + "workload" + "-" + component.Version,
-				APIVersion: ref.APIVersion,
-			},
-			MinReplicas: &component.ComponentTraits.Autoscaling.MinReplicas,
-			MaxReplicas: component.ComponentTraits.Autoscaling.MaxReplicas,
-			Metrics:     metrics,
-		},
-	}
-	return hpa
+	return v2beta2.HorizontalPodAutoscaler{}
 }
 
 func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
@@ -85,122 +84,123 @@ func (c *controller) syncHpa(component *v3.Component, app *v3.Application, ref *
 }
 
 func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.Application) error {
+	if component.ComponentTraits.Autoscaling == nil {
+		log.Infof("This component don't need configure hpaconfigmap")
+		return nil
+	}
 	log.Infof("Sync autoscaleconfigmap for %s", app.Namespace+":"+app.Name+"-"+component.Name)
-	matched, _ := regexp.MatchString(".*---.*---.*", component.ComponentTraits.Autoscaling.Metric)
-	if matched {
-		configmap, err := c.configmapLister.Get("monitoring", "adapter-config")
-		if err != nil {
-			if errors.IsNotFound(err) {
-				log.Infoln("Configmap adapter-config not found,then create it")
-				var stringmap map[string]string = make(map[string]string)
-				var config MetricsDiscoveryConfig
-				rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.ComponentTraits.Autoscaling.Metric, component.Version)
-				config.Rules = append(config.Rules, rule)
-				value, err := yaml.Marshal(config)
-				if err != nil {
-					return err
-				}
-				stringmap["config.yaml"] = string(value)
-				object := NewAutoScaleConfigMapObject(component, app, stringmap)
-				log.Debugf("NewAutoScaleConfigMapObject %v", object)
-				newconfigmap, err := c.configmapClient.Create(&object)
-				if err != nil {
-					log.Errorf("Create configmap for %s Error : %s\n", "adapter-config", err.Error())
-					return err
-				}
-				log.Debugf("Create hpaconfigmap adapter-config %v", newconfigmap)
-				return nil
+	configmap, err := c.configmapLister.Get("monitoring", "adapter-config")
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Infoln("Configmap adapter-config not found,then create it")
+			var stringmap map[string]string = make(map[string]string)
+			var config MetricsDiscoveryConfig
+			rule := generaterule(app.Name+"-"+component.Name+"-"+"workload", component.ComponentTraits.Autoscaling.Metric, component.Version)
+			config.Rules = append(config.Rules, rule)
+			value, err := yaml.Marshal(config)
+			if err != nil {
+				return err
 			}
-			log.Errorf("Get configmap for %s failed", "adapter-config")
-			return err
-		}
-		var needupdate, exist bool
-		needupdate = false
-		exist = false
-		config := new(MetricsDiscoveryConfig)
-		if configmap != nil {
-			value := configmap.Data["config.yaml"]
-			log.Debugf("configmap value %v", value)
-			if value == "" {
-				log.Debugf("ConfigMap value is null")
-				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.ComponentTraits.Autoscaling.Metric, app.Namespace)
-				config.Rules = append(config.Rules, rule)
-				needupdate = true
-			} else {
-				err := FromYAML(config, []byte(value))
-				if err != nil {
-					return err
-				}
-				rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.ComponentTraits.Autoscaling.Metric, app.Namespace)
-				if len(config.Rules) == 0 {
-					log.Debugln("ConfigMap value's rule is null")
-					exist = false
-				} else {
-					for n, i := range config.Rules {
-						if i.SeriesQuery != rule.SeriesQuery {
-							continue
-						}
-						log.Debugf("%s Check to see if an update is needed", i.SeriesQuery)
-						exist = true
-						if i.MetricsQuery == rule.MetricsQuery {
-							log.Debugf("equal")
-							needupdate = false
-							break
-						} else {
-							log.Infof("not equal update rule for %s", rule.SeriesQuery)
-							config.Rules[n] = rule
-							needupdate = true
-							break
-						}
-					}
-				}
-				if !exist {
-					log.Infof("%s not exist,append it", rule.SeriesQuery)
-					config.Rules = append(config.Rules, rule)
-					needupdate = true
-				}
+			stringmap["config.yaml"] = string(value)
+			object := NewAutoScaleConfigMapObject(component, app, stringmap)
+			log.Debugf("NewAutoScaleConfigMapObject %v", object)
+			newconfigmap, err := c.configmapClient.Create(&object)
+			if err != nil {
+				log.Errorf("Create configmap for %s Error : %s\n", "adapter-config", err.Error())
+				return err
 			}
-		}
-		if !needupdate {
+			log.Debugf("Create hpaconfigmap adapter-config %v", newconfigmap)
 			return nil
 		}
-		value, err := yaml.Marshal(config)
-		log.Debugf("Config %v", config)
-		if err != nil {
-			return err
-		}
-		configmap.Data["config.yaml"] = string(value)
-		newcm, err := c.configmapClient.Update(configmap)
-		if err != nil {
-			log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
-			return err
-		}
-		log.Infoln("HPA ConfigMap updated, prometheus-adapter pod need update config too")
-		pods, err := c.podLister.List("monitoring", labels.Everything())
-		if err != nil {
-			log.Errorf("Get %s pods failed", "monitoring")
-		}
-		for _, i := range pods {
-			log.Infof("Namespace %s pod name %s", i.Namespace, i.Name)
-			deletePolicy := metav1.DeletePropagationBackground
-			err = c.podClient.DeleteNamespaced(i.Namespace, i.Name, &metav1.DeleteOptions{
-				PropagationPolicy: &deletePolicy,
-			})
+		log.Errorf("Get configmap for %s failed", "adapter-config")
+		return err
+	}
+	var needupdate, exist bool
+	needupdate = false
+	exist = false
+	config := new(MetricsDiscoveryConfig)
+	if configmap != nil {
+		value := configmap.Data["config.yaml"]
+		log.Debugf("configmap value %v", value)
+		if value == "" {
+			log.Debugf("ConfigMap value is null")
+			rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.ComponentTraits.Autoscaling.Metric, app.Namespace)
+			config.Rules = append(config.Rules, rule)
+			needupdate = true
+		} else {
+			err := FromYAML(config, []byte(value))
 			if err != nil {
-				log.Errorf("Delete %s pod %s failed", i.Namespace, i.Name)
+				return err
+			}
+			rule := generaterule(app.Name+"-"+component.Name+"-workload-"+component.Version, component.ComponentTraits.Autoscaling.Metric, app.Namespace)
+			if len(config.Rules) == 0 {
+				log.Debugln("ConfigMap value's rule is null")
+				exist = false
+			} else {
+				for n, i := range config.Rules {
+					if i.SeriesQuery != rule.SeriesQuery {
+						continue
+					}
+					log.Debugf("%s Check to see if an update is needed", i.SeriesQuery)
+					exist = true
+					if i.MetricsQuery == rule.MetricsQuery {
+						log.Debugf("equal")
+						needupdate = false
+						break
+					} else {
+						log.Infof("not equal update rule for %s", rule.SeriesQuery)
+						config.Rules[n] = rule
+						needupdate = true
+						break
+					}
+				}
+			}
+			if !exist {
+				log.Infof("%s not exist,append it", rule.SeriesQuery)
+				config.Rules = append(config.Rules, rule)
+				needupdate = true
 			}
 		}
-
-		log.Debugf("Update hpaconfigmap adapter-config %v", newcm)
-		return nil
-
 	}
+	if !needupdate {
+		return nil
+	}
+	value, err := yaml.Marshal(config)
+	log.Debugf("Config %v", config)
+	if err != nil {
+		return err
+	}
+	configmap.Data["config.yaml"] = string(value)
+	newcm, err := c.configmapClient.Update(configmap)
+	if err != nil {
+		log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
+		return err
+	}
+	log.Infoln("HPA ConfigMap updated, prometheus-adapter pod need update config too")
+	pods, err := c.podLister.List("monitoring", labels.Everything())
+	if err != nil {
+		log.Errorf("Get %s pods failed", "monitoring")
+	}
+	for _, i := range pods {
+		log.Infof("Namespace %s pod name %s", i.Namespace, i.Name)
+		deletePolicy := metav1.DeletePropagationBackground
+		err = c.podClient.DeleteNamespaced(i.Namespace, i.Name, &metav1.DeleteOptions{
+			PropagationPolicy: &deletePolicy,
+		})
+		if err != nil {
+			log.Errorf("Delete %s pod %s failed", i.Namespace, i.Name)
+		}
+	}
+
+	log.Debugf("Update hpaconfigmap adapter-config %v", newcm)
+	return nil
+
 	return nil
 }
 
 // syncAutoScale use for syncAutoScale
 func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application, ref *metav1.OwnerReference) error {
-	if component.ComponentTraits.Autoscaling.Metric == "" {
+	if component.ComponentTraits.Autoscaling == nil {
 		log.Infof("This app don't need to configure autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		return nil
 	}
