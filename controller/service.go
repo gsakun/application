@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"reflect"
-
 	v3 "github.com/hd-Li/types/apis/project.cattle.io/v3"
 	"github.com/knative/pkg/apis/istio/common/v1alpha1"
 	istiov1alpha3 "github.com/knative/pkg/apis/istio/v1alpha3"
@@ -148,10 +146,12 @@ func NewDestinationruleObject(app *v3.Application) istiov1alpha3.DestinationRule
 		},
 	}
 
-	if len(app.Spec.OptTraits.GrayRelease) != 0 {
+	if len(app.Spec.OptTraits.GrayRelease) >= 2 {
 		for k := range app.Spec.OptTraits.GrayRelease {
 			var labels map[string]string = make(map[string]string)
 			labels["version"] = k
+			labels["app"] = app.Name + "-" + "workload"
+			labels["inpool"] = "yes"
 			destinationrule.Spec.Subsets = append(destinationrule.Spec.Subsets, istiov1alpha3.Subset{
 				Name:   k,
 				Labels: labels,
@@ -181,39 +181,35 @@ func NewDestinationruleObject(app *v3.Application) istiov1alpha3.DestinationRule
 			}
 			trafficPolicy.LoadBalancer = lbsetting
 		}
+	} else {
+		trafficPolicy.LoadBalancer = &istiov1alpha3.LoadBalancerSettings{Simple: istiov1alpha3.SimpleLBRoundRobin}
 	}
-	if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.ConnectionPool, v3.ConnectionPoolSettings{}) {
-		connectionPoolsetting := new(istiov1alpha3.ConnectionPoolSettings)
-		trafficPolicy.ConnectionPool = connectionPoolsetting
-		if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP, v3.TCPSettings{}) {
-			tcpsettings := new(istiov1alpha3.TCPSettings)
-			tcpsettings = &istiov1alpha3.TCPSettings{
-				MaxConnections: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP.MaxConnections,
-				ConnectTimeout: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP.ConnectTimeout,
+	if app.Spec.OptTraits.CircuitBreaking != nil {
+		if app.Spec.OptTraits.CircuitBreaking.ConnectionPool != nil {
+			trafficPolicy.ConnectionPool = new(istiov1alpha3.ConnectionPoolSettings)
+			if app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP != nil {
+				trafficPolicy.ConnectionPool.Tcp = &istiov1alpha3.TCPSettings{
+					MaxConnections: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP.MaxConnections,
+					ConnectTimeout: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.TCP.ConnectTimeout,
+				}
 			}
-			connectionPoolsetting.Tcp = tcpsettings
-		}
-		if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP, v3.HTTPSettings{}) {
-			httpsettings := new(istiov1alpha3.HTTPSettings)
-			httpsettings = &istiov1alpha3.HTTPSettings{
-				Http1MaxPendingRequests:  app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP1MaxPendingRequests,
-				Http2MaxRequests:         app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP2MaxRequests,
-				MaxRequestsPerConnection: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRequestsPerConnection,
-				MaxRetries:               app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRetries,
+			if app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP != nil {
+				trafficPolicy.ConnectionPool.Http = &istiov1alpha3.HTTPSettings{
+					Http1MaxPendingRequests:  app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP1MaxPendingRequests,
+					Http2MaxRequests:         app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.HTTP2MaxRequests,
+					MaxRequestsPerConnection: app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRequestsPerConnection,
+					MaxRetries:               app.Spec.OptTraits.CircuitBreaking.ConnectionPool.HTTP.MaxRetries,
+				}
 			}
-			connectionPoolsetting.Http = httpsettings
+		}
+		if app.Spec.OptTraits.CircuitBreaking.OutlierDetection != nil {
+			trafficPolicy.OutlierDetection = &istiov1alpha3.OutlierDetection{
+				ConsecutiveErrors:  app.Spec.OptTraits.CircuitBreaking.OutlierDetection.ConsecutiveErrors,
+				Interval:           app.Spec.OptTraits.CircuitBreaking.OutlierDetection.Interval,
+				BaseEjectionTime:   app.Spec.OptTraits.CircuitBreaking.OutlierDetection.BaseEjectionTime,
+				MaxEjectionPercent: app.Spec.OptTraits.CircuitBreaking.OutlierDetection.MaxEjectionPercent,
+			}
 		}
 	}
-	if !reflect.DeepEqual(app.Spec.OptTraits.CircuitBreaking.OutlierDetection, v3.OutlierDetection{}) {
-		outlierDetection := new(istiov1alpha3.OutlierDetection)
-		outlierDetection = &istiov1alpha3.OutlierDetection{
-			ConsecutiveErrors:  app.Spec.OptTraits.CircuitBreaking.OutlierDetection.ConsecutiveErrors,
-			Interval:           app.Spec.OptTraits.CircuitBreaking.OutlierDetection.Interval,
-			BaseEjectionTime:   app.Spec.OptTraits.CircuitBreaking.OutlierDetection.BaseEjectionTime,
-			MaxEjectionPercent: app.Spec.OptTraits.CircuitBreaking.OutlierDetection.MaxEjectionPercent,
-		}
-		trafficPolicy.OutlierDetection = outlierDetection
-	}
-
 	return destinationrule
 }
