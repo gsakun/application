@@ -215,7 +215,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity = new(corev1.NodeAffinity)
 				deploy.Spec.Template.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.PreferredSchedulingTerm{
 					{
-						Weight: int32(1),
+						Weight: int32(90),
 						Preference: corev1.NodeSelectorTerm{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
@@ -238,7 +238,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				deploy.Spec.Template.Spec.Affinity.PodAffinity = new(corev1.PodAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
 					{
-						Weight: int32(1),
+						Weight: int32(90),
 						PodAffinityTerm: corev1.PodAffinityTerm{
 							TopologyKey: "kubernetes.io/hostname",
 							LabelSelector: &metav1.LabelSelector{
@@ -265,7 +265,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity = new(corev1.PodAntiAffinity)
 				deploy.Spec.Template.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []corev1.WeightedPodAffinityTerm{
 					{
-						Weight: int32(1),
+						Weight: int32(90),
 						PodAffinityTerm: corev1.PodAffinityTerm{
 							TopologyKey: "kubernetes.io/hostname",
 							LabelSelector: &metav1.LabelSelector{
