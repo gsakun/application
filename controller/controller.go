@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/labels"
 
 	//typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"github.com/hd-Li/types/apis/apps/v1beta2"
@@ -322,6 +323,22 @@ func (c *controller) syncConfigmaps(component *v3.Component, app *v3.Application
 				if err != nil {
 					log.Errorf("Update configmap for %s Error : %s", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
 					return nil
+				}
+				var labelmap map[string]string = make(map[string]string)
+				labelmap["app"] = app.Name + "-" + "workload"
+				pods, err := c.podLister.List(app.Namespace, labels.SelectorFromSet(labelmap))
+				if err != nil {
+					log.Errorf("Get %s pods failed", app.Namespace)
+				}
+				for _, i := range pods {
+					log.Infof("Namespace %s pod name %s", i.Namespace, i.Name)
+					deletePolicy := metav1.DeletePropagationBackground
+					err = c.podClient.DeleteNamespaced(i.Namespace, i.Name, &metav1.DeleteOptions{
+						PropagationPolicy: &deletePolicy,
+					})
+					if err != nil {
+						log.Errorf("Delete %s pod %s failed", i.Namespace, i.Name)
+					}
 				}
 			}
 		}
