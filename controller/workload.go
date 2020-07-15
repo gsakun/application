@@ -294,7 +294,6 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			deploy.Spec.Template.Annotations["prometheus.io/scrape"] = "true"
 		}
 	}
-	// TODO OPEN METRIC TRANSFR
 	return deploy
 }
 
