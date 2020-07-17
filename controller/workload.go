@@ -177,6 +177,14 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 	deploy.Spec.Template.Spec.NodeSelector = make(map[string]string)
 	deploy.Spec.Template.Spec.NodeSelector["user"] = "SP"
 	deploy.Spec.Template.Spec.NodeSelector["type"] = "cpu"
+	if len(app.Labels) != 0 {
+		for k, v := range app.Labels {
+			if k == "cattle.io/creator" {
+				continue
+			}
+			deploy.Spec.Template.Labels[k] = v
+		}
+	}
 	for _, i := range component.Containers {
 		if i.Resources.Gpu > 0 {
 			deploy.Spec.Template.Spec.NodeSelector["type"] = "GPU"
