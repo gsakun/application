@@ -328,7 +328,7 @@ func getContainers(component *v3.Component) ([]corev1.Container, error) {
 				continue
 			}
 			volumes = append(volumes, corev1.VolumeMount{
-				Name:      component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
+				Name:      component.Name + "-" + component.Version + "-" + strings.Replace(strings.Replace(k.FileName, ".", "-", -1), "_", "-", -1),
 				MountPath: strings.TrimSuffix(k.Path, "/") + "/" + k.FileName,
 				SubPath:   "path/to/" + k.FileName,
 			})
