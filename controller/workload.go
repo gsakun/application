@@ -103,7 +103,7 @@ func NewDeployObject(component *v3.Component, app *v3.Application) appsv1beta2.D
 			if k.FileName == "" || k.Path == "" || k.Value == "" {
 				continue
 			}
-			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + strings.Replace(k.FileName, ".", "-", -1),
+			volumes = append(volumes, corev1.Volume{Name: component.Name + "-" + component.Version + "-" + strings.Replace(strings.Replace(k.FileName, ".", "-", -1), "_", "-", -1),
 				VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: app.Name + "-" + component.Name + "-" + component.Version + "-" + "configmap"},
