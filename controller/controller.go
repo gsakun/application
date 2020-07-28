@@ -564,17 +564,19 @@ func (c *controller) syncAuthor(app *v3.Application) error {
 	} else {
 		if serviceRoleBinding != nil {
 			if serviceRoleBinding.Annotations[LastAppliedConfigAnnotation] != objectString {
-				if len(app.Spec.OptTraits.WhiteList.Users) == 0 {
-					log.Infof("whitelist is null ,need delete servicerolebinding and servicerole for %s", app.Name)
-					err = c.serviceRoleBindingClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerolebinding", &metav1.DeleteOptions{})
-					if err != nil {
-						log.Errorln(err)
+				if app.Spec.OptTraits.WhiteList != nil {
+					if len(app.Spec.OptTraits.WhiteList.Users) == 0 {
+						log.Infof("whitelist is null ,need delete servicerolebinding and servicerole for %s", app.Name)
+						err = c.serviceRoleBindingClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerolebinding", &metav1.DeleteOptions{})
+						if err != nil {
+							log.Errorln(err)
+						}
+						err = c.serviceRoleClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerole", &metav1.DeleteOptions{})
+						if err != nil {
+							log.Errorln(err)
+						}
+						return nil
 					}
-					err = c.serviceRoleClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerole", &metav1.DeleteOptions{})
-					if err != nil {
-						log.Errorln(err)
-					}
-					return nil
 				}
 				object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
 				_, err = c.serviceRoleBindingClient.Update(&object)
