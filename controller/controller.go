@@ -577,11 +577,22 @@ func (c *controller) syncAuthor(app *v3.Application) error {
 						}
 						return nil
 					}
-				}
-				object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
-				_, err = c.serviceRoleBindingClient.Update(&object)
-				if err != nil {
-					log.Errorf("Update servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
+					object.ObjectMeta.ResourceVersion = serviceRoleBinding.ObjectMeta.ResourceVersion
+					_, err = c.serviceRoleBindingClient.Update(&object)
+					if err != nil {
+						log.Errorf("Update servicerolebinding error for %s error : %s", (app.Namespace + ":" + app.Name), err.Error())
+					}
+				} else {
+					log.Infof("whitelist is null ,need delete servicerolebinding and servicerole for %s", app.Name)
+					err = c.serviceRoleBindingClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerolebinding", &metav1.DeleteOptions{})
+					if err != nil {
+						log.Errorln(err)
+					}
+					err = c.serviceRoleClient.DeleteNamespaced(app.Namespace, app.Name+"-"+"servicerole", &metav1.DeleteOptions{})
+					if err != nil {
+						log.Errorln(err)
+					}
+					return nil
 				}
 			}
 		}
