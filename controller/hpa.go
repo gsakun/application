@@ -51,9 +51,9 @@ func NewAutoScaleInstance(component *v3.Component, app *v3.Application, ref *met
 		}
 		hpa := v2beta2.HorizontalPodAutoscaler{
 			ObjectMeta: metav1.ObjectMeta{
-				//OwnerReferences: []metav1.OwnerReference{ownerRef},
-				Namespace: app.Namespace,
-				Name:      app.Name + "-" + component.Name + "-" + component.Version + "-hpa",
+				OwnerReferences: []metav1.OwnerReference{*ref},
+				Namespace:       app.Namespace,
+				Name:            app.Name + "-" + component.Name + "-" + component.Version + "-hpa",
 			},
 			Spec: v2beta2.HorizontalPodAutoscalerSpec{
 				ScaleTargetRef: v2beta2.CrossVersionObjectReference{
