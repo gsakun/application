@@ -1,2 +1,2 @@
-[![Build Status](https://github.com/gsakun/application/workflows/main/badge.svg)](https://github.com/gsakun/application/actions)
+![Build & Deploy](https://github.com/gsakun/application/workflows/Build%20&%20Deploy/badge.svg?branch=master)
 # application
