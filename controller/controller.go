@@ -132,7 +132,7 @@ func Register(ctx context.Context, userContext *config.UserOnlyContext) {
 		quotaspecbindingLister:   userContext.IstioConfig.QuotaSpecBindings("").Controller().Lister(),
 		quotaspecbindingClient:   userContext.IstioConfig.QuotaSpecBindings(""),
 	}
-
+	// 添加处理Handler s.sync 所有资源的处理逻辑都包含在内
 	c.applicationClient.AddHandler(ctx, "applictionCreateOrUpdate", c.sync)
 }
 
