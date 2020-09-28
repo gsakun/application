@@ -70,6 +70,7 @@ func init() {
 }
 
 func main() {
+	// 初始化kubeconfig 
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
@@ -80,19 +81,21 @@ func main() {
 	}
 
 	ctx := SigTermCancelContext(context.Background())
-
+	// 配置userContext 初始化各类资源调用client
 	userContext, err := typesconfig.NewUserOnlyContext(*restConfig)
 	if err != nil {
 		log.Fatalf("create userContext failed, err: %s", err.Error())
 		os.Exit(1)
 	}
+	// 连接apiserver 创建Application CRD资源
 	err = SetupApplicationCRD(ctx, userContext, *restConfig)
 	if err != nil {
 		log.Fatalf("create application crd failed, err: %s ", err.Error())
 		os.Exit(1)
 	}
-
+	// 注册userContext
 	controller.Register(ctx, userContext)
+	// 启动控制器
 	err = userContext.Start(ctx)
 	if err != nil {
 		panic(err)

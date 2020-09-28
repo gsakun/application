@@ -36,3 +36,15 @@ jobs:
           VERSION=`date "+%Y%m%d"`
           docker tag application $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+
+      - name: Log into github registry
+        run: docker logout && echo "${{ secrets.DOCKERHUB_PASSWD }}" | docker login docker.pkg.github.com -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+    
+      - name: Push image to github
+        run: |
+          IMAGE_ID=docker.pkg.github.com/gsakun/application/application
+          echo "HELLO"
+          echo IMAGE_ID=$IMAGE_ID
+          VERSION=`date "+%Y%m%d"`
+          docker tag application $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
