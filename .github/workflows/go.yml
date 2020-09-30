@@ -38,7 +38,7 @@ jobs:
           docker push $IMAGE_ID:$VERSION
 
       - name: Log into github registry
-        run: docker logout && echo "${{ secrets.DOCKERHUB_PASSWD }}" | docker login docker.pkg.github.com -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+        run: docker logout && echo "${{ secrets.GIT_TOKEN }}" | docker login docker.pkg.github.com -u "${{ secrets.GIT_USER }}" --password-stdin
     
       - name: Push image to github
         run: |
