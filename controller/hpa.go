@@ -135,21 +135,21 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				log.Debugln("ConfigMap value's rule is null")
 				exist = false
 			} else {
+				exist = true
 				for n, i := range config.Rules {
 					if i.SeriesQuery != rule.SeriesQuery {
 						continue
 					}
 					log.Debugf("%s Check to see if an update is needed", i.SeriesQuery)
-					exist = true
 					if i.MetricsQuery == rule.MetricsQuery {
 						log.Debugf("equal")
 						needupdate = false
-						break
+						continue
 					} else {
 						log.Infof("not equal update rule for %s", rule.SeriesQuery)
 						config.Rules[n] = rule
 						needupdate = true
-						break
+						continue
 					}
 				}
 			}
