@@ -113,7 +113,7 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 		log.Errorf("Get configmap for %s failed", "adapter-config")
 		return err
 	}
-	var needupdate bool
+	var needupdate, exist bool
 	needupdate = false
 	config := new(MetricsDiscoveryConfig)
 	if configmap != nil {
@@ -139,15 +139,23 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 				for n, i := range config.Rules {
 					if i.SeriesQuery != rule.SeriesQuery {
 						continue
-					}
-					log.Debugf("%s Check to see if an update is needed", i.SeriesQuery)
-					if i.MetricsQuery == rule.MetricsQuery {
-						log.Debugf("equal")
 					} else {
-						log.Infof("not equal update rule for %s", rule.SeriesQuery)
-						config.Rules[n] = rule
-						needupdate = true
+						exist = true
+						log.Debugf("%s Check to see if an update is needed", i.SeriesQuery)
+						if i.MetricsQuery == rule.MetricsQuery {
+							log.Debugf("equal")
+						} else {
+							log.Infof("not equal update rule for %s", rule.SeriesQuery)
+							config.Rules[n] = rule
+							needupdate = true
+						}
+						break
 					}
+				}
+				if !exist {
+					log.Infof("%s not exist,append it", rule.SeriesQuery)
+					config.Rules = append(config.Rules, rule)
+					needupdate = true
 				}
 			}
 		}

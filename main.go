@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	kubeConfig string = "./config45"
+	kubeConfig string = "./config142"
 )
 
 func init() {
@@ -70,7 +70,7 @@ func init() {
 }
 
 func main() {
-	// 初始化kubeconfig 
+	// 初始化kubeconfig
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
