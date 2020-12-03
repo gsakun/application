@@ -168,7 +168,9 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 	if err != nil {
 		return err
 	}
+
 	configmap.Data["config.yaml"] = string(value)
+	configmap.ResourceVersion = ""
 	newcm, err := c.configmapClient.Update(configmap)
 	if err != nil {
 		log.Errorf("Update configmap for %s Error : %s\n", (app.Namespace + ":" + app.Name + ":" + component.Name), err.Error())
@@ -191,8 +193,6 @@ func (c *controller) syncAutoScaleConfigMap(component *v3.Component, app *v3.App
 	}
 
 	log.Debugf("Update hpaconfigmap adapter-config %v", newcm)
-	return nil
-
 	return nil
 }
 
