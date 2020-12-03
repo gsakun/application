@@ -202,6 +202,10 @@ func (c *controller) syncAutoScale(component *v3.Component, app *v3.Application,
 		log.Infof("This app don't need to configure autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 		return nil
 	}
+	if component.ComponentTraits.Autoscaling.MaxReplicas < component.ComponentTraits.Autoscaling.MinReplicas {
+		log.Errorf("这个服务自动扩缩配置的最大副本数小于最小副本数 配置无效 %s", app.Namespace+":"+app.Name+"-"+component.Name)
+		return nil
+	}
 	log.Infof("Sync autoscale for %s", app.Namespace+":"+app.Name+"-"+component.Name)
 	insObject := NewAutoScaleInstance(component, app, ref)
 	log.Debugf("AutoScaleObject %v", insObject)
