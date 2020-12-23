@@ -735,7 +735,7 @@ func (c *controller) syncTrustedWorkload(component *v3.Component, app *v3.Applic
 				ref.Kind = "Deployment"
 				ref.UID = deploy.ObjectMeta.UID*/
 		object := deploy.DeepCopy()
-		key := app.Name + "-" + component.Name + "-" + "workload"
+		key := app.Name + "-" + "workload"
 
 		if val, _ := object.Spec.Template.Labels["app"]; val != key {
 			object.Spec.Template.Labels["app"] = key
