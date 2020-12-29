@@ -31,7 +31,7 @@ func NewServiceRoleObject(app *v3.Application) istiorbacv1alpha1.ServiceRole {
 func NewServiceRoleBinding(app *v3.Application) istiorbacv1alpha1.ServiceRoleBinding {
 	subjects := []istiorbacv1alpha1.Subject{}
 	if app.Spec.OptTraits.WhiteList != nil {
-		for _, e := range app.Spec.OptTraits.WhiteList.Users {
+		for _, e := range RemoveRepByLoop(app.Spec.OptTraits.WhiteList.Users) {
 			subject := istiorbacv1alpha1.Subject{
 				Properties: map[string]string{
 					"request.auth.claims[email]": e,
@@ -65,4 +65,22 @@ func NewServiceRoleBinding(app *v3.Application) istiorbacv1alpha1.ServiceRoleBin
 	}
 
 	return serviceRoleBinding
+}
+
+// RemoveRepByLoop use for remove Rep element
+func RemoveRepByLoop(slc []string) []string {
+	result := []string{} // 存放结果
+	for i := range slc {
+		flag := true
+		for j := range result {
+			if slc[i] == result[j] {
+				flag = false // 存在重复元素，标识为false
+				break
+			}
+		}
+		if flag { // 标识为false，不添加进结果
+			result = append(result, slc[i])
+		}
+	}
+	return result
 }
